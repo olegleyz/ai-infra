@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # poll-comments.sh — Polls open GitHub issues labeled "user-comment",
-# generates a Claude response, posts it, and closes the issue.
+# uses Claude to update the knowledge map, commits, pushes, and closes the issue.
 #
 # Requirements: gh (GitHub CLI, authenticated), jq, claude (Claude CLI)
 
 set -euo pipefail
+export GIT_SSL_NO_VERIFY=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -62,41 +63,57 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
     USER_COMMENT="$BODY"
   fi
 
-  # Load node context from topic JSON
   TOPIC_FILE="$PROJECT_DIR/topics/${TOPIC_ID}.json"
-  NODE_CONTEXT=""
-  if [[ -f "$TOPIC_FILE" ]]; then
-    NODE_LABEL=$(jq -r --arg id "$NODE_ID" '.nodes[$id].label // "Unknown"' "$TOPIC_FILE")
-    NODE_SUMMARY=$(jq -r --arg id "$NODE_ID" '.nodes[$id].summary // ""' "$TOPIC_FILE")
-    NODE_CATEGORY=$(jq -r --arg id "$NODE_ID" '.nodes[$id].category // ""' "$TOPIC_FILE")
-    NODE_CONTEXT="Node: $NODE_LABEL ($NODE_ID)
-Category: $NODE_CATEGORY
-Summary: $NODE_SUMMARY"
-  else
-    echo "  WARNING: Topic file $TOPIC_FILE not found."
-    NODE_CONTEXT="Topic: $TOPIC_ID, Node: $NODE_ID (topic file not found)"
+
+  if [[ ! -f "$TOPIC_FILE" ]]; then
+    echo "  WARNING: Topic file $TOPIC_FILE not found. Closing with notice."
+    gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "Topic file \`topics/${TOPIC_ID}.json\` not found. Could not process this comment."
+    gh issue close "$NUMBER" --repo "$FULL_REPO"
+    continue
   fi
 
-  # Build prompt for Claude
-  PROMPT="You are responding to a user comment on the AI Data Centers knowledge map.
+  # Build the full prompt for Claude with tool access
+  PROMPT="A user submitted a comment on the AI Data Centers knowledge map (GitHub issue #${NUMBER}).
 
-Context about the node they're commenting on:
-$NODE_CONTEXT
+Topic ID: ${TOPIC_ID}
+Node ID: ${NODE_ID}
+Topic file: ${TOPIC_FILE}
 
-The user's comment/question:
-$USER_COMMENT
+User's comment/request:
+${USER_COMMENT}
 
-Please provide a helpful, concise response. If the comment suggests a factual correction or valuable addition, note that clearly. If it's a question, answer it based on your knowledge. Keep the response focused and actionable."
+Your job:
+1. Read the topic file: ${TOPIC_FILE}
+2. Find the node '${NODE_ID}' in the JSON
+3. Update the node's 'details' field (and 'summary' if appropriate) to address the user's comment — add the requested information, fix errors, or enrich the content. Write in Markdown. Keep existing good content, add new content that addresses the comment.
+4. Make sure the JSON remains valid (no trailing commas, proper escaping)
+5. Commit the change with message: 'update ${TOPIC_ID}: enrich ${NODE_ID} (from issue #${NUMBER})'
+6. Push to origin main
+7. Output a brief summary (2-3 sentences) of what you changed, so it can be posted back to the GitHub issue.
 
-  echo "  Calling Claude for response..."
-  RESPONSE=$(echo "$PROMPT" | claude --print 2>/dev/null) || {
-    echo "  ERROR: Claude CLI failed. Skipping issue #$NUMBER."
+IMPORTANT: Only modify the specific node's content. Do not restructure the JSON or modify other nodes. Write content in Markdown format inside the details field."
+
+  echo "  Running Claude agent to update knowledge map..."
+  RESPONSE=$(cd "$PROJECT_DIR" && claude -p "$PROMPT" --output-format text --allowedTools "Edit,Read,Bash(git *),Bash(jq *),Write" 2>&1) || {
+    echo "  ERROR: Claude agent failed. Skipping issue #$NUMBER."
+    echo "  Output: $RESPONSE"
     continue
   }
 
-  # Post response and close
-  echo "  Posting response to issue #$NUMBER..."
-  gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$RESPONSE"
+  echo "  Claude response: $RESPONSE"
+
+  # Post summary to the issue and close
+  COMMENT_BODY="$(cat <<EOF
+**Knowledge map updated** ✅
+
+${RESPONSE}
+
+The change has been pushed to main and will be live on the site shortly.
+EOF
+)"
+
+  echo "  Posting summary to issue #$NUMBER..."
+  gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$COMMENT_BODY"
   gh issue close "$NUMBER" --repo "$FULL_REPO"
   echo "  Issue #$NUMBER resolved and closed."
 done

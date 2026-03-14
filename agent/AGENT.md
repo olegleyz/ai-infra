@@ -2,7 +2,12 @@
 
 ## Overview
 
-This agent polls GitHub Issues for user comments submitted from the knowledge map, generates responses using Claude, posts them back, and closes the issues.
+This agent polls GitHub Issues for user comments submitted from the knowledge map. For each issue it:
+1. Invokes Claude with file editing tools to update the relevant node in `topics/*.json`
+2. Commits and pushes the change to main
+3. Posts a summary back to the issue and closes it
+
+The knowledge map site auto-deploys from main via GitHub Pages, so changes go live within minutes.
 
 ## How to Run
 
@@ -10,30 +15,25 @@ This agent polls GitHub Issues for user comments submitted from the knowledge ma
 # One-shot (process all open issues)
 bash agent/poll-comments.sh
 
-# Periodic (every 5 minutes via cron)
-*/5 * * * * cd /path/to/aidc && bash agent/poll-comments.sh >> /tmp/poll-comments.log 2>&1
-
-# Manual loop
-while true; do bash agent/poll-comments.sh; sleep 300; done
+# Cron (every 5 minutes)
+*/5 * * * * export PATH="..." && bash /path/to/agent/poll-comments.sh >> /tmp/poll-comments.log 2>&1
 ```
 
 ## Requirements
 
 - **gh** — GitHub CLI, authenticated (`gh auth login`)
 - **jq** — JSON processor
-- **claude** — Claude CLI (`claude --print` for non-interactive mode)
+- **claude** — Claude CLI (needs tool access: Edit, Read, Bash for git)
 
 ## Issue Format
-
-Issues submitted from the knowledge map follow this format:
 
 **Title:** `[topicId:nodeId] First 60 chars of user comment...`
 
 **Body:**
 ```
 **Topic:** AI Data Centers
-**Node:** Grid Interconnection Crisis (grid-queues)
-**Path:** root › Value Chain Layers › Layer 1: Power & Energy › Grid Interconnection Crisis
+**Node:** Nuclear & SMRs (nuclear-smrs)
+**Path:** root › Value Chain Layers › ...
 
 ---
 
@@ -42,41 +42,18 @@ User's full comment text here
 
 **Label:** `user-comment`
 
-## How the Agent Processes Issues
+## What Claude Does Per Issue
 
-1. Reads `comments.config.json` for owner/repo
-2. Lists all open issues with the `user-comment` label
-3. For each issue:
-   - Parses `[topicId:nodeId]` from the title
-   - Extracts the user comment (text after `---` in the body)
-   - Loads node context from `topics/{topicId}.json`
-   - Builds a prompt with node summary + user comment
-   - Calls `claude --print` for a response
-   - Posts the response as an issue comment
-   - Closes the issue
-4. Unparseable or missing topic/node → posts an explanatory comment and closes
+1. Reads `topics/{topicId}.json`
+2. Finds the node by ID
+3. Updates the node's `details` (and `summary` if needed) with enriched content addressing the user's comment
+4. Keeps JSON valid, doesn't touch other nodes
+5. Commits: `update {topicId}: enrich {nodeId} (from issue #{number})`
+6. Pushes to origin main
 
-## Updating the Knowledge Graph
+## Edge Cases
 
-When a user comment suggests a factual correction or valuable addition:
-
-1. Edit the relevant `topics/{topicId}.json` file
-2. Update the node's `details`, `summary`, or other fields as appropriate
-3. Run `validate.html` to check the JSON is valid
-4. Commit with message: `update {topicId}: {brief description} (from issue #{number})`
-
-## Configuration
-
-Edit `comments.config.json`:
-
-```json
-{
-  "github": {
-    "owner": "your-github-username",
-    "repo": "your-repo-name",
-    "labels": ["user-comment"]
-  }
-}
-```
-
-The owner/repo must match where the knowledge map site is hosted. No secrets needed — the `gh` CLI handles authentication.
+- **Unparseable title** → posts notice, closes issue
+- **Missing topic file** → posts notice, closes issue
+- **Claude fails** → logs error, skips to next issue
+- **No open issues** → exits cleanly
