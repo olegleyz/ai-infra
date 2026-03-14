@@ -396,7 +396,7 @@ function getConnections(nodeId) {
 
 // --- Data loading ---
 async function loadTopicRegistry() {
-  const resp = await fetch('topics/index.json');
+  const resp = await fetch('topics/index.json?v=' + Date.now());
   topicRegistry = await resp.json();
   const select = document.getElementById('topic-select');
   select.innerHTML = '';
@@ -412,7 +412,7 @@ async function loadTopicRegistry() {
 async function loadTopic(id) {
   currentTopicId = id;
   document.getElementById('node-grid').innerHTML = '<div id="loading">Loading...</div>';
-  const resp = await fetch('topics/' + id + '.json');
+  const resp = await fetch('topics/' + id + '.json?v=' + Date.now());
   topicData = await resp.json();
   buildParentMap();
 
@@ -500,7 +500,7 @@ function copyForClaude(nodeId) {
 // --- GitHub integration ---
 async function loadGitHubConfig() {
   try {
-    const resp = await fetch('comments.config.json');
+    const resp = await fetch('comments.config.json?v=' + Date.now());
     if (!resp.ok) return;
     const cfg = await resp.json();
     if (cfg.github && cfg.github.owner && cfg.github.repo &&
