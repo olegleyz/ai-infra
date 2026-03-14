@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Map</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1d27;
+  --bg3: #242736;
+  --border: #2e3144;
+  --text: #e1e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4a6bff;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+  --purple: #a78bfa;
+  --pink: #f472b6;
+  --cyan: #22d3ee;
+  --cat-value-chain: #6c8cff;
+  --cat-power: #fbbf24;
+  --cat-hardware: #34d399;
+  --cat-software: #a78bfa;
+  --cat-market: #fb923c;
+  --cat-opportunity: #22d3ee;
+  --cat-strategy: #f472b6;
+  --cat-player: #60a5fa;
+  --cat-risk: #f87171;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+#app { display: flex; height: 100vh; flex-direction: column; }
+
+/* Top bar */
+#topbar { display:flex; align-items:center; gap:12px; padding:10px 20px; background:var(--bg2); border-bottom:1px solid var(--border); flex-shrink:0; z-index:100; }
+#topbar h1 { font-size:16px; font-weight:600; white-space:nowrap; }
+#topbar h1 span { color:var(--accent); }
+#topic-select { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:6px; font-size:13px; outline:none; cursor:pointer; }
+#topic-select:hover { border-color:var(--accent); }
+#breadcrumbs { display:flex; gap:4px; align-items:center; font-size:13px; flex:1; overflow-x:auto; }
+#breadcrumbs .crumb { color:var(--text2); cursor:pointer; white-space:nowrap; padding:4px 8px; border-radius:4px; transition:all .15s; }
+#breadcrumbs .crumb:hover { background:var(--bg3); color:var(--text); }
+#breadcrumbs .crumb.active { color:var(--accent); font-weight:600; }
+#breadcrumbs .sep { color:var(--border); font-size:11px; }
+#search-box { position:relative; }
+#search-box input { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:6px 12px 6px 32px; border-radius:6px; font-size:13px; width:220px; outline:none; }
+#search-box input:focus { border-color:var(--accent); }
+#search-box svg { position:absolute; left:8px; top:50%; transform:translateY(-50%); }
+#search-results { position:absolute; top:100%; right:0; background:var(--bg2); border:1px solid var(--border); border-radius:8px; width:320px; max-height:400px; overflow-y:auto; display:none; z-index:200; margin-top:4px; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+#search-results.show { display:block; }
+#search-results .sr-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); }
+#search-results .sr-item:hover { background:var(--bg3); }
+#search-results .sr-item .sr-label { font-size:13px; font-weight:500; }
+#search-results .sr-item .sr-path { font-size:11px; color:var(--text2); margin-top:2px; }
+
+/* Main content area */
+#main { display:flex; flex:1; overflow:hidden; }
+
+/* Tree sidebar */
+#sidebar { width:280px; background:var(--bg2); border-right:1px solid var(--border); overflow-y:auto; flex-shrink:0; padding:12px 0; transition:width .2s; }
+#sidebar.collapsed { width:0; padding:0; overflow:hidden; }
+.tree-item { padding:5px 12px 5px calc(12px + var(--depth,0) * 16px); cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px; transition: background .1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tree-item:hover { background:var(--bg3); }
+.tree-item.active { background:var(--bg3); color:var(--accent); font-weight:600; }
+.tree-item .arrow { font-size:10px; width:14px; text-align:center; color:var(--text2); transition:transform .15s; flex-shrink:0; }
+.tree-item .arrow.open { transform:rotate(90deg); }
+.tree-item .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.tree-children { overflow:hidden; }
+.tree-children.collapsed { display:none; }
+
+/* Toggle sidebar button */
+#sidebar-toggle { position:absolute; left:280px; top:50%; transform:translateY(-50%); z-index:50; background:var(--bg2); border:1px solid var(--border); color:var(--text2); width:20px; height:40px; border-radius:0 6px 6px 0; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; transition:left .2s; }
+#sidebar-toggle:hover { color:var(--text); background:var(--bg3); }
+#sidebar-toggle.shifted { left:0; }
+
+/* Graph area */
+#graph-area { flex:1; position:relative; overflow:hidden; }
+#graph-container { position:absolute; inset:0; overflow:auto; padding:32px; }
+
+/* Level indicator */
+#level-header { padding:0 0 20px 0; }
+#level-header h2 { font-size:22px; font-weight:700; margin-bottom:4px; }
+#level-header .level-desc { font-size:14px; color:var(--text2); max-width:800px; line-height:1.5; }
+
+/* Node grid */
+#node-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px; max-width:1400px; }
+.node-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; cursor:pointer; transition:all .15s; position:relative; overflow:hidden; }
+.node-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 20px rgba(108,140,255,.15); }
+.node-card.expanded { border-color:var(--accent); }
+.node-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:12px 12px 0 0; }
+.node-card[data-cat="value-chain"]::before { background:var(--cat-value-chain); }
+.node-card[data-cat="power"]::before { background:var(--cat-power); }
+.node-card[data-cat="hardware"]::before { background:var(--cat-hardware); }
+.node-card[data-cat="software"]::before { background:var(--cat-software); }
+.node-card[data-cat="market"]::before { background:var(--cat-market); }
+.node-card[data-cat="opportunity"]::before { background:var(--cat-opportunity); }
+.node-card[data-cat="strategy"]::before { background:var(--cat-strategy); }
+.node-card[data-cat="player"]::before { background:var(--cat-player); }
+.node-card[data-cat="risk"]::before { background:var(--cat-risk); }
+.node-card[data-cat="construction"]::before { background:#f59e0b; }
+.node-card[data-cat="cooling"]::before { background:#06b6d4; }
+.node-card[data-cat="integration"]::before { background:#8b5cf6; }
+.node-card[data-cat="operations"]::before { background:#ec4899; }
+.node-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.node-icon { font-size:24px; flex-shrink:0; }
+.node-title { font-size:15px; font-weight:600; line-height:1.3; }
+.node-summary { font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:10px; }
+.node-meta { display:flex; gap:6px; flex-wrap:wrap; }
+.node-tag { font-size:10px; padding:2px 8px; border-radius:10px; background:var(--bg3); color:var(--text2); border:1px solid var(--border); }
+.node-tag.stock { background:rgba(34,211,153,.1); color:var(--green); border-color:rgba(34,211,153,.3); }
+.node-tag.bottleneck { background:rgba(248,113,113,.1); color:var(--red); border-color:rgba(248,113,113,.3); }
+.node-tag.opportunity { background:rgba(34,211,238,.1); color:var(--cyan); border-color:rgba(34,211,238,.3); }
+.node-tag.hot { background:rgba(251,191,36,.1); color:var(--yellow); border-color:rgba(251,191,36,.3); }
+.node-children-count { font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+.node-children-count svg { opacity:.5; }
+
+/* Detail panel - resizable */
+#detail-panel { width:0; background:var(--bg2); border-left:1px solid var(--border); overflow-y:auto; flex-shrink:0; position:relative; transition:width .2s; }
+#detail-panel.open { width:420px; transition:none; }
+#detail-panel.open .resize-handle { display:block; }
+.resize-handle { display:none; position:absolute; top:0; left:-4px; bottom:0; width:8px; cursor:col-resize; z-index:10; }
+.resize-handle:hover, .resize-handle.active { background:var(--accent); opacity:.3; }
+#detail-content { padding:20px; min-width:320px; }
+#detail-close { position:absolute; top:12px; right:12px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:18px; padding:4px 8px; border-radius:4px; }
+#detail-close:hover { background:var(--bg3); color:var(--text); }
+#detail-content h2 { font-size:18px; font-weight:700; margin-bottom:4px; padding-right:30px; }
+#detail-content .detail-cat { font-size:12px; color:var(--text2); margin-bottom:16px; text-transform:uppercase; letter-spacing:1px; }
+#detail-content .detail-body { font-size:13px; line-height:1.7; color:var(--text); }
+#detail-content .detail-body h3 { font-size:14px; font-weight:600; margin:16px 0 8px; color:var(--accent); }
+#detail-content .detail-body h4 { font-size:13px; font-weight:600; margin:12px 0 6px; color:var(--text); }
+#detail-content .detail-body p { margin-bottom:10px; }
+#detail-content .detail-body ul { margin:8px 0 12px 20px; }
+#detail-content .detail-body li { margin-bottom:4px; font-size:13px; }
+#detail-content .detail-body table { width:100%; border-collapse:collapse; margin:10px 0; font-size:12px; }
+#detail-content .detail-body th { text-align:left; padding:6px 8px; background:var(--bg3); border:1px solid var(--border); font-weight:600; color:var(--text2); }
+#detail-content .detail-body td { padding:6px 8px; border:1px solid var(--border); }
+#detail-content .detail-body .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+#detail-content .detail-body .stat-box { background:var(--bg3); border-radius:8px; padding:10px; text-align:center; }
+#detail-content .detail-body .stat-box .stat-val { font-size:18px; font-weight:700; color:var(--accent); }
+#detail-content .detail-body .stat-box .stat-label { font-size:11px; color:var(--text2); margin-top:2px; }
+#detail-content .detail-body .bar-chart { margin:10px 0; }
+#detail-content .detail-body .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; }
+#detail-content .detail-body .bar-label { width:120px; text-align:right; color:var(--text2); flex-shrink:0; }
+#detail-content .detail-body .bar-track { flex:1; height:20px; background:var(--bg); border-radius:4px; overflow:hidden; }
+#detail-content .detail-body .bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:6px; font-size:10px; font-weight:600; color:var(--bg); }
+#detail-content .detail-body .callout { background:var(--bg3); border-left:3px solid var(--accent); padding:10px 12px; border-radius:0 6px 6px 0; margin:12px 0; font-size:12px; }
+#detail-content .detail-body .callout.warning { border-left-color:var(--yellow); }
+#detail-content .detail-body .callout.danger { border-left-color:var(--red); }
+#detail-content .detail-body .callout.success { border-left-color:var(--green); }
+.detail-nav { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+.detail-nav h4 { font-size:12px; color:var(--text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.detail-nav .nav-link { display:block; padding:6px 10px; font-size:13px; color:var(--accent); cursor:pointer; border-radius:4px; margin-bottom:2px; }
+.detail-nav .nav-link:hover { background:var(--bg3); }
+
+/* Flow diagram (for value chain view) */
+.flow-container { display:flex; flex-direction:column; gap:8px; max-width:1000px; }
+.flow-row { display:flex; align-items:center; gap:0; }
+.flow-node { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; cursor:pointer; transition:all .15s; flex:1; max-width:300px; position:relative; }
+.flow-node:hover { border-color:var(--accent); transform:scale(1.02); }
+.flow-node .flow-label { font-size:14px; font-weight:600; }
+.flow-node .flow-sub { font-size:11px; color:var(--text2); margin-top:2px; }
+.flow-arrow { color:var(--border); font-size:20px; padding:0 4px; flex-shrink:0; text-align:center; }
+.flow-arrow.down { display:flex; justify-content:center; padding:2px 0; }
+
+/* Connection map for overview */
+.overview-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:20px; max-width:1200px; }
+.overview-card { background:var(--bg2); border:2px solid var(--border); border-radius:16px; padding:24px; cursor:pointer; transition:all .2s; }
+.overview-card:hover { border-color:var(--accent); transform:translateY(-4px); box-shadow:0 8px 32px rgba(108,140,255,.2); }
+.overview-card .ov-icon { font-size:36px; margin-bottom:12px; }
+.overview-card .ov-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+.overview-card .ov-desc { font-size:13px; color:var(--text2); line-height:1.5; margin-bottom:12px; }
+.overview-card .ov-stats { display:flex; gap:12px; }
+.overview-card .ov-stat { font-size:12px; }
+.overview-card .ov-stat strong { color:var(--accent); }
+
+/* Narrative */
+.narrative { font-size:14px; line-height:1.8; color:var(--text); margin-bottom:16px; padding:12px 16px; background:var(--bg); border-radius:8px; border-left:3px solid var(--accent); }
+.narrative strong { color:var(--accent); }
+
+/* Connected nodes (graph edges) */
+.connections { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+.connections h4 { font-size:12px; color:var(--text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
+.connections h4 svg { opacity:.5; }
+.conn-item { display:flex; align-items:flex-start; gap:8px; padding:6px 10px; border-radius:6px; cursor:pointer; margin-bottom:2px; font-size:12px; transition:background .1s; }
+.conn-item:hover { background:var(--bg3); }
+.conn-arrow { color:var(--text2); flex-shrink:0; margin-top:2px; }
+.conn-label { color:var(--text2); flex:1; }
+.conn-target { color:var(--accent); font-weight:500; white-space:nowrap; flex-shrink:0; }
+.conn-type { font-size:10px; padding:1px 6px; border-radius:8px; background:var(--bg3); color:var(--text2); flex-shrink:0; }
+
+/* Comments */
+.comment-section { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+.comment-section h4 { font-size:12px; color:var(--text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.comment-textarea { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:8px 10px; font-size:12px; font-family:inherit; resize:vertical; min-height:60px; outline:none; }
+.comment-textarea:focus { border-color:var(--accent); }
+.comment-textarea::placeholder { color:var(--text2); opacity:.6; }
+.comment-saved { font-size:11px; color:var(--green); margin-top:4px; opacity:0; transition:opacity .3s; }
+.comment-saved.show { opacity:1; }
+.has-comment { position:relative; }
+.has-comment::after { content:'💬'; position:absolute; top:8px; right:8px; font-size:12px; }
+
+/* Action buttons */
+.action-btns { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.action-btn { font-size:11px; padding:4px 10px; border-radius:4px; border:1px solid var(--border); background:var(--bg3); color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:4px; }
+.action-btn:hover { border-color:var(--accent); color:var(--text); }
+#export-btn { position:fixed; bottom:12px; right:12px; z-index:200; font-size:12px; padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+#export-btn:hover { border-color:var(--accent); color:var(--text); }
+
+/* Notification bell */
+#notif-bell { position:relative; cursor:pointer; padding:4px 8px; border-radius:6px; font-size:18px; line-height:1; user-select:none; }
+#notif-bell:hover { background:var(--bg3); }
+#notif-count { position:absolute; top:-2px; right:-2px; background:var(--red); color:#fff; font-size:9px; font-weight:700; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+#notif-count.hidden { display:none; }
+.notif-panel { position:absolute; top:100%; right:0; background:var(--bg2); border:1px solid var(--border); border-radius:8px; width:360px; max-height:400px; overflow-y:auto; display:none; z-index:200; margin-top:4px; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+.notif-panel.show { display:block; }
+.notif-panel-header { padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; color:var(--text2); }
+.notif-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); font-size:12px; }
+.notif-item:hover { background:var(--bg3); }
+.notif-item .notif-node { font-weight:600; color:var(--accent); }
+.notif-item .notif-date { color:var(--text2); font-size:11px; margin-top:2px; }
+.notif-item .notif-preview { color:var(--text2); margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.notif-empty { padding:20px; text-align:center; color:var(--text2); font-size:13px; }
+
+/* GitHub submit button */
+.gh-submit-btn { background:var(--bg3); border:1px solid var(--border); color:var(--text2); cursor:pointer; font-size:11px; padding:4px 10px; border-radius:4px; display:flex; align-items:center; gap:4px; }
+.gh-submit-btn:hover { border-color:var(--accent); color:var(--text); }
+
+/* Responsive */
+@media (max-width:768px) {
+  #sidebar { display:none; }
+  #detail-panel.open { width:100%; position:absolute; z-index:100; }
+  .overview-grid { grid-template-columns:1fr; }
+  #node-grid { grid-template-columns:1fr; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text2); }
+
+/* Legend */
+#legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text2); }
+.legend-dot { width:10px; height:10px; border-radius:50%; }
+
+/* Loading */
+#loading { display:flex; align-items:center; justify-content:center; height:100%; color:var(--text2); font-size:14px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1><span>Knowledge</span> Map</h1>
+    <select id="topic-select"></select>
+    <div id="breadcrumbs"></div>
+    <div id="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ba1b5" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="search-input" placeholder="Search nodes..." autocomplete="off">
+      <div id="search-results"></div>
+    </div>
+    <div id="notif-wrapper" style="position:relative;display:none;">
+      <div id="notif-bell" onclick="toggleNotifPanel()">🔔<span id="notif-count" class="hidden">0</span></div>
+      <div class="notif-panel" id="notif-panel">
+        <div class="notif-panel-header">Resolved Comments</div>
+        <div id="notif-list"></div>
+      </div>
+    </div>
+  </div>
+  <div id="main">
+    <div id="sidebar"></div>
+    <div id="graph-area">
+      <div id="graph-container">
+        <div id="level-header"></div>
+        <div id="legend"></div>
+        <div id="node-grid"></div>
+      </div>
+    </div>
+    <div id="detail-panel">
+      <div class="resize-handle" id="resize-handle"></div>
+      <div id="detail-content" style="position:relative;">
+        <button id="detail-close" onclick="closeDetail()">&times;</button>
+      </div>
+    </div>
+  </div>
+  <button id="export-btn" onclick="exportComments()" title="Export all your comments for Claude">📋 Export Comments</button>
+</div>
+
+<script src="lib/marked.min.js"></script>
+<script>
+// =====================================================
+// KNOWLEDGE MAP — Topic-agnostic UI shell
+// Data loaded from topics/*.json via fetch()
+// =====================================================
+
+// --- State ---
+let topicRegistry = [];
+let currentTopicId = null;
+let topicData = null;       // { meta, nodes, hierarchy, edges }
+let PARENT = {};            // nodeId → parentId
+let currentPath = ['root'];
+let selectedNodeId = null;
+let ghConfig = null;
+
+// --- Category styling ---
+const CAT_COLORS = {
+  'value-chain': '#6c8cff', 'power': '#fbbf24', 'hardware': '#34d399',
+  'software': '#a78bfa', 'market': '#fb923c', 'opportunity': '#22d3ee',
+  'strategy': '#f472b6', 'player': '#60a5fa', 'risk': '#f87171',
+  'construction': '#f59e0b', 'cooling': '#06b6d4', 'integration': '#8b5cf6',
+  'operations': '#ec4899'
+};
+const CAT_LABELS = {
+  'value-chain': 'Value Chain', 'power': 'Power & Energy', 'hardware': 'Hardware',
+  'software': 'Software', 'market': 'Market', 'opportunity': 'Opportunity',
+  'strategy': 'Strategy', 'player': 'Player', 'risk': 'Risk',
+  'construction': 'Construction', 'cooling': 'Cooling', 'integration': 'Integration',
+  'operations': 'Operations'
+};
+
+// --- Configure marked.js ---
+const renderer = new marked.Renderer();
+const originalLink = renderer.link.bind(renderer);
+renderer.link = function({ href, title, text }) {
+  // Handle node: protocol links
+  if (href && href.startsWith('node:')) {
+    const nodeId = href.slice(5);
+    return '<a href="#" onclick="goToNode(\'' + nodeId + '\');return false;" class="conn-target">' + text + '</a>';
+  }
+  return originalLink({ href, title, text });
+};
+marked.setOptions({ renderer, breaks: false });
+
+function renderContent(str) {
+  if (!str) return '';
+  // Content is already HTML (migrated from template literals), so return as-is.
+  // For new content written in Markdown, marked() will handle it.
+  // Detect if content is already HTML (starts with < after trimming)
+  const trimmed = str.trim();
+  if (trimmed.startsWith('<')) {
+    // Already HTML — process any node: links inside href attributes
+    return trimmed.replace(/href="node:([^"]+)"/g, 'href="#" onclick="goToNode(\'$1\');return false;"');
+  }
+  // Markdown content
+  return marked.parse(str);
+}
+
+// --- Graph helpers ---
+function getNode(id) {
+  return topicData ? topicData.nodes[id] : null;
+}
+
+function getChildren(id) {
+  if (!topicData || !topicData.hierarchy[id]) return [];
+  return topicData.hierarchy[id];
+}
+
+function hasChildren(id) {
+  return topicData && topicData.hierarchy[id] && topicData.hierarchy[id].length > 0;
+}
+
+function getPath(id) {
+  const path = [id];
+  let cur = id;
+  while (PARENT[cur]) {
+    cur = PARENT[cur];
+    path.unshift(cur);
+  }
+  return path;
+}
+
+function buildParentMap() {
+  PARENT = {};
+  if (!topicData) return;
+  for (const [parentId, children] of Object.entries(topicData.hierarchy)) {
+    for (const childId of children) {
+      PARENT[childId] = parentId;
+    }
+  }
+}
+
+function getConnections(nodeId) {
+  if (!topicData) return [];
+  return topicData.edges.filter(c => c.from === nodeId || c.to === nodeId).map(c => {
+    const isSource = c.from === nodeId;
+    const targetId = isSource ? c.to : c.from;
+    const target = getNode(targetId);
+    if (!target) return null;
+    return { targetId, target, label: c.label, type: c.type, direction: isSource ? '→' : '←' };
+  }).filter(Boolean);
+}
+
+// --- Data loading ---
+async function loadTopicRegistry() {
+  const resp = await fetch('topics/index.json');
+  topicRegistry = await resp.json();
+  const select = document.getElementById('topic-select');
+  select.innerHTML = '';
+  topicRegistry.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.icon + ' ' + t.label;
+    select.appendChild(opt);
+  });
+  select.onchange = () => loadTopic(select.value);
+}
+
+async function loadTopic(id) {
+  currentTopicId = id;
+  document.getElementById('node-grid').innerHTML = '<div id="loading">Loading...</div>';
+  const resp = await fetch('topics/' + id + '.json');
+  topicData = await resp.json();
+  buildParentMap();
+
+  // Update page title
+  document.title = topicData.meta.label + ' — Knowledge Map';
+  document.querySelector('#topbar h1').innerHTML = '<span>' + topicData.meta.icon + '</span> ' + topicData.meta.label;
+
+  // Reset navigation
+  currentPath = ['root'];
+  selectedNodeId = null;
+  navigateTo(['root']);
+}
+
+// --- Comment system (localStorage, keyed by topic) ---
+function commentKey(nodeId) {
+  return (currentTopicId || 'default') + ':' + nodeId;
+}
+
+function getComment(nodeId) {
+  try { return localStorage.getItem('km-comment-' + commentKey(nodeId)) || ''; } catch(e) { return ''; }
+}
+
+function saveComment(nodeId, text) {
+  try {
+    const k = 'km-comment-' + commentKey(nodeId);
+    if (text.trim()) localStorage.setItem(k, text);
+    else localStorage.removeItem(k);
+  } catch(e) {}
+}
+
+function getAllComments() {
+  const prefix = 'km-comment-' + (currentTopicId || 'default') + ':';
+  const comments = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith(prefix)) {
+        const nodeId = key.slice(prefix.length);
+        const node = getNode(nodeId);
+        comments[nodeId] = { label: node ? node.label : nodeId, text: localStorage.getItem(key) };
+      }
+    }
+  } catch(e) {}
+  return comments;
+}
+
+function exportComments() {
+  const comments = getAllComments();
+  const entries = Object.entries(comments);
+  if (entries.length === 0) { alert('No comments yet. Add comments to nodes in the detail panel.'); return; }
+  const topicLabel = topicData ? topicData.meta.label : 'Knowledge Map';
+  let text = '# My Comments on ' + topicLabel + '\n# ' + new Date().toISOString().slice(0,10) + '\n\n';
+  entries.forEach(([id, c]) => {
+    text += '## ' + c.label + ' (' + id + ')\n' + c.text + '\n\n';
+  });
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('export-btn');
+    btn.textContent = '✅ Copied to clipboard!';
+    setTimeout(() => { btn.innerHTML = '📋 Export Comments'; }, 2000);
+  }).catch(() => {
+    const blob = new Blob([text], {type:'text/markdown'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'comments.md'; a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+function copyForClaude(nodeId) {
+  const node = getNode(nodeId);
+  if (!node) return;
+  const comment = getComment(nodeId);
+  const conns = getConnections(nodeId);
+  const topicLabel = topicData ? topicData.meta.label : '';
+  let text = 'I am looking at the node "' + node.label + '" in my ' + topicLabel + ' knowledge map.\n\n';
+  text += 'Summary: ' + node.summary + '\n\n';
+  if (comment) text += 'My comment/question: ' + comment + '\n\n';
+  if (conns.length > 0) text += 'Connected to: ' + conns.map(c => c.target.label + ' (' + c.label + ')').join(', ') + '\n\n';
+  text += 'Please help me understand this deeper / answer my questions.';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-claude-btn');
+    if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = '📋 Copy for Claude'; }, 2000); }
+  });
+}
+
+// --- GitHub integration ---
+async function loadGitHubConfig() {
+  try {
+    const resp = await fetch('comments.config.json');
+    if (!resp.ok) return;
+    const cfg = await resp.json();
+    if (cfg.github && cfg.github.owner && cfg.github.repo &&
+        cfg.github.owner !== 'OWNER' && cfg.github.repo !== 'REPO') {
+      ghConfig = cfg.github;
+    }
+  } catch(e) { /* config missing or invalid — GitHub features stay disabled */ }
+}
+
+function submitToGitHub(nodeId) {
+  if (!ghConfig) return;
+  const node = getNode(nodeId);
+  if (!node) return;
+  const textarea = document.querySelector('.comment-textarea');
+  const comment = textarea ? textarea.value.trim() : '';
+  if (!comment) { alert('Please write a comment before submitting to GitHub.'); return; }
+
+  const topicLabel = topicData ? topicData.meta.label : currentTopicId;
+  const pathLabels = getPath(nodeId).map(pid => { const n = getNode(pid); return n ? n.label : pid; }).join(' › ');
+  const titleText = comment.length > 60 ? comment.slice(0, 60) + '...' : comment;
+  const title = '[' + currentTopicId + ':' + nodeId + '] ' + titleText;
+  const body = '**Topic:** ' + topicLabel + '\n' +
+    '**Node:** ' + node.label + ' (' + nodeId + ')\n' +
+    '**Path:** ' + pathLabels + '\n\n---\n\n' + comment;
+  const labels = ghConfig.labels ? ghConfig.labels.join(',') : 'user-comment';
+
+  const url = 'https://github.com/' + ghConfig.owner + '/' + ghConfig.repo +
+    '/issues/new?title=' + encodeURIComponent(title) +
+    '&body=' + encodeURIComponent(body) +
+    '&labels=' + encodeURIComponent(labels);
+  window.open(url, '_blank');
+}
+
+function initNotificationBell() {
+  if (!ghConfig) return;
+  document.getElementById('notif-wrapper').style.display = '';
+  fetchResolvedComments();
+}
+
+async function fetchResolvedComments() {
+  if (!ghConfig) return;
+  const cacheKey = 'km-notif-cache';
+  const cacheTTL = 5 * 60 * 1000; // 5 minutes
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached && Date.now() - cached.ts < cacheTTL) {
+      renderNotifications(cached.issues);
+      return;
+    }
+  } catch(e) {}
+
+  try {
+    const labels = ghConfig.labels ? ghConfig.labels.join(',') : 'user-comment';
+    const url = 'https://api.github.com/repos/' + ghConfig.owner + '/' + ghConfig.repo +
+      '/issues?labels=' + encodeURIComponent(labels) + '&state=closed&per_page=20&sort=updated&direction=desc';
+    const resp = await fetch(url);
+    if (!resp.ok) { renderNotifications([]); return; }
+    const issues = await resp.json();
+    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), issues }));
+    renderNotifications(issues);
+  } catch(e) { renderNotifications([]); }
+}
+
+function renderNotifications(issues) {
+  const list = document.getElementById('notif-list');
+  const countEl = document.getElementById('notif-count');
+  const viewedKey = 'km-notif-viewed';
+  const viewed = JSON.parse(localStorage.getItem(viewedKey) || '[]');
+
+  const newCount = issues.filter(i => !viewed.includes(i.id)).length;
+  if (newCount > 0) {
+    countEl.textContent = newCount;
+    countEl.classList.remove('hidden');
+  } else {
+    countEl.classList.add('hidden');
+  }
+
+  if (issues.length === 0) {
+    list.innerHTML = '<div class="notif-empty">No resolved comments yet</div>';
+    return;
+  }
+
+  list.innerHTML = issues.map(issue => {
+    const match = issue.title.match(/^\[([^:]+):([^\]]+)\]/);
+    const nodeId = match ? match[2] : null;
+    const node = nodeId ? getNode(nodeId) : null;
+    const nodeLabel = node ? (node.icon + ' ' + node.label) : (nodeId || 'Unknown');
+    const date = new Date(issue.closed_at).toLocaleDateString();
+    const preview = issue.body ? issue.body.split('---').pop().trim().slice(0, 100) : '';
+    return '<div class="notif-item" onclick="window.open(\'' + issue.html_url + '\', \'_blank\')">' +
+      '<div class="notif-node">' + nodeLabel + '</div>' +
+      '<div class="notif-date">Resolved ' + date + '</div>' +
+      (preview ? '<div class="notif-preview">' + preview + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  const isShowing = panel.classList.toggle('show');
+  if (isShowing) {
+    // Mark all as viewed
+    try {
+      const cached = JSON.parse(localStorage.getItem('km-notif-cache') || '{"issues":[]}');
+      const ids = (cached.issues || []).map(i => i.id);
+      localStorage.setItem('km-notif-viewed', JSON.stringify(ids));
+      document.getElementById('notif-count').classList.add('hidden');
+    } catch(e) {}
+  }
+}
+
+// Close notif panel on outside click
+document.addEventListener('click', (e) => {
+  const wrapper = document.getElementById('notif-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    document.getElementById('notif-panel').classList.remove('show');
+  }
+});
+
+// --- Rendering ---
+function getCurrentNode() {
+  if (!topicData) return null;
+  return topicData.nodes[currentPath[currentPath.length - 1]];
+}
+
+function renderBreadcrumbs() {
+  const el = document.getElementById('breadcrumbs');
+  el.innerHTML = '';
+  currentPath.forEach((id, i) => {
+    const node = getNode(id);
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'sep';
+      sep.textContent = '›';
+      el.appendChild(sep);
+    }
+    const crumb = document.createElement('span');
+    crumb.className = 'crumb' + (i === currentPath.length - 1 ? ' active' : '');
+    crumb.textContent = node ? (node.icon + ' ' + node.label) : id;
+    crumb.onclick = () => navigateTo(currentPath.slice(0, i + 1));
+    el.appendChild(crumb);
+  });
+}
+
+function renderTree() {
+  const el = document.getElementById('sidebar');
+  el.innerHTML = '';
+  if (!topicData) return;
+
+  function renderNode(id, depth) {
+    const node = getNode(id);
+    if (!node) return;
+    const item = document.createElement('div');
+    item.className = 'tree-item' + (selectedNodeId === id ? ' active' : '');
+    item.style.setProperty('--depth', depth);
+    const children = hasChildren(id);
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow' + (currentPath.includes(id) ? ' open' : '');
+    arrow.textContent = children ? '▶' : '';
+    item.appendChild(arrow);
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = CAT_COLORS[node.category] || '#666';
+    item.appendChild(dot);
+    const label = document.createElement('span');
+    label.textContent = node.icon + ' ' + node.label;
+    item.appendChild(label);
+    item.onclick = (e) => {
+      e.stopPropagation();
+      if (children) {
+        navigateTo(getPath(id));
+      } else {
+        selectNode(id);
+      }
+    };
+    el.appendChild(item);
+    if (children && currentPath.includes(id)) {
+      getChildren(id).forEach(childId => renderNode(childId, depth + 1));
+    }
+  }
+  renderNode('root', 0);
+}
+
+function renderGrid() {
+  const currentId = currentPath[currentPath.length - 1];
+  const node = getNode(currentId);
+  if (!node) return;
+  const header = document.getElementById('level-header');
+  header.innerHTML = '<h2>' + node.icon + ' ' + node.label + '</h2><div class="level-desc">' + node.summary + '</div>';
+
+  // Legend
+  const legend = document.getElementById('legend');
+  const childIds = getChildren(currentId);
+  const cats = new Set();
+  childIds.forEach(cid => { const n = getNode(cid); if (n) cats.add(n.category); });
+  legend.innerHTML = '';
+  cats.forEach(cat => {
+    const item = document.createElement('span');
+    item.className = 'legend-item';
+    item.innerHTML = '<span class="legend-dot" style="background:' + (CAT_COLORS[cat]||'#666') + '"></span>' + (CAT_LABELS[cat]||cat);
+    legend.appendChild(item);
+  });
+
+  const grid = document.getElementById('node-grid');
+  grid.innerHTML = '';
+
+  if (childIds.length === 0) {
+    // Leaf node — show details inline
+    grid.innerHTML = '<div style="max-width:800px">' + renderContent(node.details || '<p>No additional details yet.</p>') + '</div>';
+    return;
+  }
+
+  childIds.forEach(childId => {
+    const child = getNode(childId);
+    if (!child) return;
+    const card = document.createElement('div');
+    card.className = 'node-card' + (getComment(childId) ? ' has-comment' : '');
+    card.dataset.cat = child.category;
+    card.onclick = () => {
+      if (hasChildren(childId)) {
+        navigateTo([...currentPath, childId]);
+      } else {
+        selectNode(childId);
+      }
+    };
+    card.oncontextmenu = (e) => { e.preventDefault(); selectNode(childId); };
+
+    let tagsHtml = '';
+    if (child.tags) {
+      tagsHtml = '<div class="node-meta">' + child.tags.map(t => {
+        let cls = 'node-tag';
+        if (t.startsWith('stock:')) cls += ' stock';
+        else if (t === 'bottleneck') cls += ' bottleneck';
+        else if (t === 'opportunity') cls += ' opportunity';
+        else if (t === 'hot') cls += ' hot';
+        return '<span class="' + cls + '">' + (t.startsWith('stock:') ? '$'+t.slice(6) : t) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    const connCount = topicData.edges.filter(c => c.from === childId || c.to === childId).length;
+    const connBadge = connCount > 0 ? ' · ' + connCount + ' connections' : '';
+    let childCount = '';
+    if (hasChildren(childId)) {
+      childCount = '<div class="node-children-count"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>' +
+        getChildren(childId).length + ' sub-topics' + connBadge + ' — click to explore</div>';
+    } else {
+      childCount = '<div class="node-children-count"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' +
+        'Click for details' + connBadge + '</div>';
+    }
+
+    card.innerHTML =
+      '<div class="node-header"><span class="node-icon">' + child.icon + '</span><span class="node-title">' + child.label + '</span></div>' +
+      '<div class="node-summary">' + child.summary + '</div>' +
+      tagsHtml + childCount;
+    grid.appendChild(card);
+  });
+}
+
+function navigateTo(path) {
+  currentPath = path;
+  selectedNodeId = null;
+  renderBreadcrumbs();
+  renderTree();
+  renderGrid();
+  closeDetail();
+  document.getElementById('graph-container').scrollTop = 0;
+}
+
+function selectNode(id) {
+  selectedNodeId = id;
+  const node = getNode(id);
+  if (!node) return;
+  const panel = document.getElementById('detail-panel');
+  const content = document.getElementById('detail-content');
+  panel.classList.add('open');
+
+  const conns = getConnections(id);
+  const comment = getComment(id);
+  const hasNarrative = node.narrative;
+
+  let connectionsHtml = '';
+  if (conns.length > 0) {
+    connectionsHtml = '<div class="connections">' +
+      '<h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> Connected Nodes (' + conns.length + ')</h4>' +
+      conns.map(c => '<div class="conn-item" onclick="goToNode(\'' + c.targetId + '\')">' +
+        '<span class="conn-arrow">' + c.direction + '</span>' +
+        '<span class="conn-target">' + c.target.icon + ' ' + c.target.label + '</span>' +
+        '<span class="conn-label">' + c.label + '</span>' +
+      '</div>').join('') +
+    '</div>';
+  }
+
+  const safeId = id.replace(/'/g, "\\'");
+  let commentHtml = '<div class="comment-section">' +
+    '<h4>Your Notes</h4>' +
+    '<textarea class="comment-textarea" placeholder="Add your thoughts, questions, or feedback about this topic..." oninput="saveComment(\'' + safeId + '\', this.value); document.getElementById(\'comment-saved-' + id + '\').classList.add(\'show\'); setTimeout(()=>document.getElementById(\'comment-saved-' + id + '\').classList.remove(\'show\'),1500)">' + comment + '</textarea>' +
+    '<div class="comment-saved" id="comment-saved-' + id + '">Saved</div>' +
+    '<div class="action-btns">' +
+      '<button class="action-btn copy-claude-btn" onclick="copyForClaude(\'' + safeId + '\')">📋 Copy for Claude</button>' +
+      (ghConfig ? '<button class="action-btn gh-submit-btn" onclick="submitToGitHub(\'' + safeId + '\')">🐙 Submit to GitHub</button>' : '') +
+    '</div>' +
+  '</div>';
+
+  // Render narrative and details through marked if they look like Markdown
+  const narrativeHtml = hasNarrative ? '<div class="narrative">' + renderContent(node.narrative) + '</div>' : '';
+  const detailsHtml = renderContent(node.details || '<p>Details coming soon. This node can be extended with more research.</p>');
+
+  // Sub-topics nav
+  let subTopicsHtml = '';
+  if (hasChildren(id)) {
+    const childIds = getChildren(id);
+    subTopicsHtml = '<div class="detail-nav"><h4>Sub-topics</h4>' +
+      childIds.map(cid => {
+        const c = getNode(cid);
+        return c ? '<div class="nav-link" onclick="navigateTo(getPath(\'' + cid + '\'))">' + c.icon + ' ' + c.label + '</div>' : '';
+      }).join('') +
+    '</div>';
+  }
+
+  content.innerHTML =
+    '<button id="detail-close" onclick="closeDetail()">&times;</button>' +
+    '<h2>' + node.icon + ' ' + node.label + '</h2>' +
+    '<div class="detail-cat" style="color:' + (CAT_COLORS[node.category]||'#666') + '">' + (CAT_LABELS[node.category]||node.category) + '</div>' +
+    narrativeHtml +
+    '<div class="detail-body">' + detailsHtml + '</div>' +
+    subTopicsHtml +
+    connectionsHtml +
+    commentHtml;
+
+  renderTree();
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  selectedNodeId = null;
+  renderTree();
+}
+
+function goToNode(id) {
+  const node = getNode(id);
+  if (!node) return;
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').classList.remove('show');
+  if (hasChildren(id)) {
+    navigateTo(getPath(id));
+  } else {
+    // Navigate to parent, then select this node
+    const path = getPath(id);
+    const parentPath = path.slice(0, -1);
+    currentPath = parentPath.length > 0 ? parentPath : ['root'];
+    renderBreadcrumbs();
+    renderTree();
+    renderGrid();
+    selectNode(id);
+  }
+}
+
+// --- Search ---
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {
+  if (!topicData) return;
+  const q = searchInput.value.toLowerCase().trim();
+  if (q.length < 2) { searchResults.classList.remove('show'); return; }
+  const results = Object.entries(topicData.nodes).filter(([id, n]) =>
+    n.label.toLowerCase().includes(q) ||
+    (n.summary && n.summary.toLowerCase().includes(q)) ||
+    (n.tags && n.tags.some(t => t.toLowerCase().includes(q)))
+  ).slice(0, 10);
+  if (results.length === 0) { searchResults.classList.remove('show'); return; }
+  searchResults.innerHTML = results.map(([id, r]) => {
+    const pathLabels = getPath(id).map(pid => { const n = getNode(pid); return n ? n.label : pid; }).join(' › ');
+    return '<div class="sr-item" onclick="goToNode(\'' + id + '\')">' +
+      '<div class="sr-label">' + r.icon + ' ' + r.label + '</div>' +
+      '<div class="sr-path">' + pathLabels + '</div>' +
+    '</div>';
+  }).join('');
+  searchResults.classList.add('show');
+});
+searchInput.addEventListener('blur', () => setTimeout(() => searchResults.classList.remove('show'), 200));
+
+// --- Keyboard navigation ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (selectedNodeId) { closeDetail(); }
+    else if (currentPath.length > 1) { navigateTo(currentPath.slice(0, -1)); }
+  }
+  if (e.key === '/' && !e.ctrlKey && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
+// --- Resizable detail panel ---
+(function() {
+  const panel = document.getElementById('detail-panel');
+  const handle = document.getElementById('resize-handle');
+  let isResizing = false;
+  let startX, startWidth;
+
+  handle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = panel.offsetWidth;
+    handle.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const diff = startX - e.clientX;
+    const newWidth = Math.max(320, Math.min(startWidth + diff, window.innerWidth * 0.8));
+    panel.style.width = newWidth + 'px';
+    document.getElementById('detail-content').style.width = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      handle.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+})();
+
+// --- Boot ---
+(async function() {
+  await loadGitHubConfig();
+  await loadTopicRegistry();
+  if (topicRegistry.length > 0) {
+    // Check URL hash for topic
+    const hash = location.hash.slice(1);
+    const startTopic = topicRegistry.find(t => t.id === hash) ? hash : topicRegistry[0].id;
+    document.getElementById('topic-select').value = startTopic;
+    await loadTopic(startTopic);
+  }
+  initNotificationBell();
+})();
+</script>
+</body>
+</html>
