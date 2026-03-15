@@ -126,6 +126,48 @@ post_stage() {
   echo "  [$stage] Posted to issue."
 }
 
+# ── Resume support ──────────────────────────────────────────────
+# Fetch all existing comments once. Each stage checks if it already
+# completed successfully. If so, extract the output and skip ahead.
+echo "  Checking for prior progress..."
+ALL_COMMENTS=$(gh issue view "$ISSUE_NUMBER" --repo "$FULL_REPO" --json comments --jq '[.comments[].body]')
+
+# Check if a stage completed successfully (has header without ❌)
+# Returns the comment body (stage output) if found, empty string if not
+get_completed_stage() {
+  local stage_num="$1"
+  local success_marker="$2"
+  # Find a comment containing the success marker but NOT ❌
+  local body
+  body=$(echo "$ALL_COMMENTS" | jq -r --arg marker "$success_marker" '.[] | select(contains($marker)) | select(contains("❌") | not)' 2>/dev/null | head -1)
+  if [[ -n "$body" ]]; then
+    # Strip the header line to get just the stage content
+    echo "$body" | sed '1,/^$/d'
+  fi
+}
+
+# Extract prior stage outputs if they exist
+CACHED_REQUIREMENTS=$(get_completed_stage 1 "Stage 1: Product Agent")
+CACHED_DESIGN=$(get_completed_stage 2 "Stage 2: Architect Agent")
+CACHED_REVIEW=$(get_completed_stage 3 "Stage 3: Review Agent")
+CACHED_PLAN=$(get_completed_stage 4 "Stage 4: Resolve Agent")
+CACHED_SHIP=$(get_completed_stage 7 "Feature implemented and shipped")
+
+if [[ -n "$CACHED_SHIP" ]]; then
+  echo "  Issue already fully processed (shipped). Closing if still open."
+  gh issue close "$ISSUE_NUMBER" --repo "$FULL_REPO" 2>/dev/null || true
+  exit 0
+fi
+
+echo "  Prior stages found: $(
+  [[ -n "$CACHED_REQUIREMENTS" ]] && echo -n "1 "
+  [[ -n "$CACHED_DESIGN" ]] && echo -n "2 "
+  [[ -n "$CACHED_REVIEW" ]] && echo -n "3 "
+  [[ -n "$CACHED_PLAN" ]] && echo -n "4 "
+  [[ -n "$CACHED_IMPL" ]] && echo -n "5 "
+  echo "(none)" | head -1
+)"
+
 # Helper: run claude with timeout and capture output
 # Stages with tools (implement/test/fix) get 5 min, others get 3 min
 run_agent() {
@@ -187,6 +229,10 @@ run_agent_retry() {
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 1: Product Agent ──────────────────────────────"
 
+if [[ -n "$CACHED_REQUIREMENTS" ]]; then
+  echo "  [Product] Resuming from cached output."
+  REQUIREMENTS="$CACHED_REQUIREMENTS"
+else
 REQUIREMENTS=$(run_agent_retry "Product" "You are a Product Manager AI agent. Your job is to convert a vague user feature request into a complete, unambiguous specification.
 
 PROJECT CONTEXT:
@@ -235,6 +281,7 @@ OUTPUT FORMAT — respond with exactly this structure:
 post_stage "Product" "**Stage 1: Product Agent — Requirements** 📋
 
 $REQUIREMENTS"
+fi # end cached check
 
 echo "  [Product] Done."
 
@@ -243,6 +290,10 @@ echo "  [Product] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 2: Architect Agent ─────────────────────────────"
 
+if [[ -n "$CACHED_DESIGN" ]]; then
+  echo "  [Architect] Resuming from cached output."
+  DESIGN="$CACHED_DESIGN"
+else
 CODEBASE_SUMMARY=$(cd "$PROJECT_DIR" && head -250 index.html | tail -235)
 
 DESIGN=$(run_agent_retry "Architect" "You are a Principal Engineer AI agent. Your job is to design the best implementation for a feature, considering the existing codebase.
@@ -305,6 +356,7 @@ Step 4: [Mobile-specific changes]
 post_stage "Architect" "**Stage 2: Architect Agent — Design** 🏗️
 
 $DESIGN"
+fi # end cached check
 
 echo "  [Architect] Done."
 
@@ -313,6 +365,10 @@ echo "  [Architect] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 3: Review Agent ────────────────────────────────"
 
+if [[ -n "$CACHED_REVIEW" ]]; then
+  echo "  [Review] Resuming from cached output."
+  REVIEW="$CACHED_REVIEW"
+else
 REVIEW=$(run_agent_retry "Review" "You are a Senior Engineer AI agent performing a peer review. Be critical but constructive. Your job is to catch problems BEFORE code is written.
 
 REQUIREMENTS:
@@ -355,6 +411,7 @@ OUTPUT FORMAT:
 post_stage "Review" "**Stage 3: Review Agent — Peer Review** 🔍
 
 $REVIEW"
+fi # end cached check
 
 echo "  [Review] Done."
 
@@ -363,6 +420,10 @@ echo "  [Review] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 4: Resolve Agent ───────────────────────────────"
 
+if [[ -n "$CACHED_PLAN" ]]; then
+  echo "  [Resolve] Resuming from cached output."
+  FINAL_PLAN="$CACHED_PLAN"
+else
 FINAL_PLAN=$(run_agent_retry "Resolve" "You are a Principal Engineer AI agent. You've received peer review feedback on your design. Address every issue raised and produce the FINAL implementation plan.
 
 ORIGINAL REQUIREMENTS:
@@ -404,6 +465,7 @@ OUTPUT FORMAT:
 post_stage "Resolve" "**Stage 4: Resolve Agent — Final Plan** ✅
 
 $FINAL_PLAN"
+fi # end cached check
 
 echo "  [Resolve] Done."
 
