@@ -104,22 +104,36 @@ post_stage() {
   echo "  [$stage] Posted to issue."
 }
 
-# Helper: run claude and capture output
+# Helper: run claude with timeout and capture output
+# Stages with tools (implement/test/fix) get 5 min, others get 3 min
 run_agent() {
   local label="$1"
   local prompt="$2"
   local tools="${3:-}"
-  echo "  [$label] Running..."
+  local timeout_sec="${4:-180}"
+  echo "  [$label] Running (timeout: ${timeout_sec}s)..."
   local result
   if [[ -n "$tools" ]]; then
-    result=$(cd "$PROJECT_DIR" && claude -p "$prompt" --output-format text --allowedTools "$tools" 2>&1) || {
-      echo "  [$label] FAILED"
+    result=$(cd "$PROJECT_DIR" && timeout "$timeout_sec" claude -p "$prompt" --output-format text --allowedTools "$tools" 2>&1) || {
+      local exit_code=$?
+      if [[ $exit_code -eq 124 ]]; then
+        echo "  [$label] TIMED OUT after ${timeout_sec}s"
+        result="Agent timed out after ${timeout_sec} seconds. The feature may be too large for a single pass."
+      else
+        echo "  [$label] FAILED (exit $exit_code)"
+      fi
       echo "$result"
       return 1
     }
   else
-    result=$(claude -p "$prompt" --output-format text 2>&1) || {
-      echo "  [$label] FAILED"
+    result=$(timeout "$timeout_sec" claude -p "$prompt" --output-format text 2>&1) || {
+      local exit_code=$?
+      if [[ $exit_code -eq 124 ]]; then
+        echo "  [$label] TIMED OUT after ${timeout_sec}s"
+        result="Agent timed out after ${timeout_sec} seconds."
+      else
+        echo "  [$label] FAILED (exit $exit_code)"
+      fi
       echo "$result"
       return 1
     }
@@ -383,7 +397,7 @@ RULES:
 - All changes go in index.html unless the plan says otherwise.
 - Make sure mobile styles go inside the @media (max-width:768px) block.
 - Use the Edit tool for targeted changes, not full file rewrites.
-- Preserve existing indentation style." "Edit,Read,Bash(node *),Bash(jq *),Write") || {
+- Preserve existing indentation style." "Edit,Read,Bash(node *),Bash(jq *),Write" "300") || {
   post_stage "Implement" "**Stage 5: Implement Agent** ❌ Failed to implement.
 
 \`\`\`
@@ -446,7 +460,7 @@ OUTPUT FORMAT:
 [PASS / FAIL — if FAIL, list what needs fixing]
 
 ### Fix Instructions (if FAIL)
-[Specific instructions for what to fix]" "Read,Bash(node *),Bash(jq *),Bash(grep *)") || {
+[Specific instructions for what to fix]" "Read,Bash(node *),Bash(jq *),Bash(grep *)" "180") || {
   post_stage "Test" "**Stage 6: Test Agent** ❌ Failed to run tests."
   exit 1
 }
@@ -470,7 +484,7 @@ YOUR TASK:
 1. Read the relevant parts of index.html
 2. Fix every issue identified in the test results
 3. Re-run syntax validation: node -e \"const fs=require('fs'); const h=fs.readFileSync('index.html','utf8'); const js=h.split('<script>')[1].split('</script>')[0]; try { new Function(js); console.log('JS: OK'); } catch(e) { console.error('JS ERROR:',e.message); process.exit(1); }\"
-4. Output what you fixed" "Edit,Read,Bash(node *),Bash(jq *),Write") || {
+4. Output what you fixed" "Edit,Read,Bash(node *),Bash(jq *),Write" "300") || {
     post_stage "Fix" "**Stage 6b: Fix Agent** ❌ Failed to fix issues. Manual intervention needed.
 
 Test failures:

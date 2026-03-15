@@ -97,7 +97,7 @@ ${USER_COMMENT}
 
 Reply with exactly one word: content, bug, or feature"
 
-  CATEGORY=$(claude -p "$CLASSIFY_PROMPT" --output-format text 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g') || CATEGORY="content"
+  CATEGORY=$(timeout 60 claude -p "$CLASSIFY_PROMPT" --output-format text 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g') || CATEGORY="content"
 
   if [[ "$CATEGORY" != "content" && "$CATEGORY" != "bug" && "$CATEGORY" != "feature" ]]; then
     echo "  WARNING: Unexpected category '$CATEGORY', defaulting to 'content'"
@@ -188,7 +188,7 @@ RULES:
 
   # ── Step 3: Execute (content and bug only) ─────────────────────
   echo "  Running Claude agent ($CATEGORY)..."
-  RESPONSE=$(cd "$PROJECT_DIR" && claude -p "$AGENT_PROMPT" --output-format text --allowedTools "$ALLOWED_TOOLS" 2>&1) || {
+  RESPONSE=$(cd "$PROJECT_DIR" && timeout 300 claude -p "$AGENT_PROMPT" --output-format text --allowedTools "$ALLOWED_TOOLS" 2>&1) || {
     echo "  ERROR: Claude agent failed on issue #$NUMBER."
     echo "  Output: $RESPONSE"
     gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "**Agent failed to process this issue.** The error has been logged.
