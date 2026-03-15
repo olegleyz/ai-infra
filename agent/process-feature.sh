@@ -19,6 +19,28 @@
 set -euo pipefail
 export GIT_SSL_NO_VERIFY=1
 
+# macOS doesn't have timeout; use gtimeout from coreutils or a shell fallback
+if command -v gtimeout &>/dev/null; then
+  TIMEOUT_CMD="gtimeout"
+elif command -v timeout &>/dev/null; then
+  TIMEOUT_CMD="timeout"
+else
+  # Pure bash fallback: run command in background, kill after N seconds
+  run_with_timeout() {
+    local secs="$1"; shift
+    "$@" &
+    local pid=$!
+    ( sleep "$secs"; kill "$pid" 2>/dev/null ) &
+    local watchdog=$!
+    wait "$pid" 2>/dev/null
+    local ret=$?
+    kill "$watchdog" 2>/dev/null
+    wait "$watchdog" 2>/dev/null
+    return $ret
+  }
+  TIMEOUT_CMD="__fallback__"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG="$PROJECT_DIR/comments.config.json"
@@ -113,10 +135,17 @@ run_agent() {
   local timeout_sec="${4:-180}"
   echo "  [$label] Running (timeout: ${timeout_sec}s)..."
   local result
+  local timeout_wrapper=""
+  if [[ "$TIMEOUT_CMD" == "__fallback__" ]]; then
+    timeout_wrapper="run_with_timeout $timeout_sec"
+  else
+    timeout_wrapper="$TIMEOUT_CMD $timeout_sec"
+  fi
+
   if [[ -n "$tools" ]]; then
-    result=$(cd "$PROJECT_DIR" && timeout "$timeout_sec" claude -p "$prompt" --output-format text --allowedTools "$tools" 2>&1) || {
+    result=$(cd "$PROJECT_DIR" && $timeout_wrapper claude -p "$prompt" --output-format text --allowedTools "$tools" 2>&1) || {
       local exit_code=$?
-      if [[ $exit_code -eq 124 ]]; then
+      if [[ $exit_code -eq 124 || $exit_code -eq 137 ]]; then
         echo "  [$label] TIMED OUT after ${timeout_sec}s"
         result="Agent timed out after ${timeout_sec} seconds. The feature may be too large for a single pass."
       else
@@ -126,9 +155,9 @@ run_agent() {
       return 1
     }
   else
-    result=$(timeout "$timeout_sec" claude -p "$prompt" --output-format text 2>&1) || {
+    result=$($timeout_wrapper claude -p "$prompt" --output-format text 2>&1) || {
       local exit_code=$?
-      if [[ $exit_code -eq 124 ]]; then
+      if [[ $exit_code -eq 124 || $exit_code -eq 137 ]]; then
         echo "  [$label] TIMED OUT after ${timeout_sec}s"
         result="Agent timed out after ${timeout_sec} seconds."
       else

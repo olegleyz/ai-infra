@@ -14,6 +14,23 @@
 set -euo pipefail
 export GIT_SSL_NO_VERIFY=1
 
+# macOS timeout compat
+if command -v gtimeout &>/dev/null; then
+  TIMEOUT_CMD="gtimeout"
+elif command -v timeout &>/dev/null; then
+  TIMEOUT_CMD="timeout"
+else
+  TIMEOUT_CMD=""
+fi
+run_timeout() {
+  local secs="$1"; shift
+  if [[ -n "$TIMEOUT_CMD" ]]; then
+    $TIMEOUT_CMD "$secs" "$@"
+  else
+    "$@"
+  fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG="$PROJECT_DIR/comments.config.json"
@@ -97,7 +114,7 @@ ${USER_COMMENT}
 
 Reply with exactly one word: content, bug, or feature"
 
-  CATEGORY=$(timeout 60 claude -p "$CLASSIFY_PROMPT" --output-format text 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g') || CATEGORY="content"
+  CATEGORY=$(run_timeout 60 claude -p "$CLASSIFY_PROMPT" --output-format text 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g') || CATEGORY="content"
 
   if [[ "$CATEGORY" != "content" && "$CATEGORY" != "bug" && "$CATEGORY" != "feature" ]]; then
     echo "  WARNING: Unexpected category '$CATEGORY', defaulting to 'content'"
@@ -188,7 +205,7 @@ RULES:
 
   # ── Step 3: Execute (content and bug only) ─────────────────────
   echo "  Running Claude agent ($CATEGORY)..."
-  RESPONSE=$(cd "$PROJECT_DIR" && timeout 300 claude -p "$AGENT_PROMPT" --output-format text --allowedTools "$ALLOWED_TOOLS" 2>&1) || {
+  RESPONSE=$(cd "$PROJECT_DIR" && run_timeout 300 claude -p "$AGENT_PROMPT" --output-format text --allowedTools "$ALLOWED_TOOLS" 2>&1) || {
     echo "  ERROR: Claude agent failed on issue #$NUMBER."
     echo "  Output: $RESPONSE"
     gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "**Agent failed to process this issue.** The error has been logged.
