@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# poll-comments.sh — Polls open GitHub issues, classifies them,
-# and routes to the appropriate handler.
+# poll-comments.sh — Autonomous agent that processes ALL open issues to completion.
+#
+# Every issue is classified, implemented, verified, pushed, and closed.
+# Nothing is left open — the agent either fixes it or explains why it couldn't.
 #
 # Comment types:
-#   content    → Claude edits topics/*.json, commits, pushes, closes issue
-#   question   → Claude answers in a comment, closes issue
-#   bug        → Labels as "bug", leaves open for developer
-#   feature    → Labels as "enhancement", leaves open for developer
+#   content  → Claude enriches topics/*.json with requested info, commits, pushes
+#   bug      → Claude fixes the code (index.html, CSS, JS), tests, commits, pushes
+#   feature  → Claude implements the feature, tests, commits, pushes
 #
 # Requirements: gh (GitHub CLI, authenticated), jq, claude (Claude CLI)
 
@@ -58,7 +59,7 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
   BODY=$(echo "$issue" | jq -r '.body')
 
   echo ""
-  echo "--- Processing issue #$NUMBER: $TITLE ---"
+  echo "=== Processing issue #$NUMBER: $TITLE ==="
 
   # Ensure the user-comment label
   gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "$LABEL" 2>/dev/null || true
@@ -82,144 +83,177 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
 
   TOPIC_FILE="$PROJECT_DIR/topics/${TOPIC_ID}.json"
 
-  # ── Step 1: Classify the comment ──────────────────────────────
-  echo "  Classifying comment..."
+  # ── Step 1: Classify ──────────────────────────────────────────
+  echo "  Classifying..."
   CLASSIFY_PROMPT="Classify this user comment into exactly one category. Reply with ONLY the category word, nothing else.
 
 Categories:
-- content: User wants more information added to this topic, asks to research something, requests data/analysis, or suggests a factual correction. The request is about WHAT the knowledge map says.
-- question: User asks a question that can be answered without changing the knowledge map.
-- bug: User reports something broken, not working, display issue, error, or incorrect behavior in the website/app UI.
-- feature: User requests a new capability, UI improvement, navigation change, or workflow enhancement. The request is about HOW the knowledge map works, not what it contains.
+- content: User wants information added, expanded, researched, or corrected in the knowledge base. They want to know MORE about a topic, want data/analysis added, or point out missing/wrong information. This is about WHAT the knowledge map contains.
+- bug: User reports something broken, not rendering, not scrolling, crashing, display glitch, or incorrect behavior in the website UI/app.
+- feature: User requests a new UI capability, navigation improvement, layout change, new interactive element, or workflow enhancement. This is about HOW the knowledge map works as software.
 
 User comment:
 ${USER_COMMENT}
 
-Reply with exactly one word: content, question, bug, or feature"
+Reply with exactly one word: content, bug, or feature"
 
-  CATEGORY=$(claude -p "$CLASSIFY_PROMPT" --output-format text 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]') || CATEGORY="content"
+  CATEGORY=$(claude -p "$CLASSIFY_PROMPT" --output-format text 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z]//g') || CATEGORY="content"
 
-  # Normalize — sometimes Claude adds punctuation
-  CATEGORY=$(echo "$CATEGORY" | sed 's/[^a-z]//g')
-  if [[ "$CATEGORY" != "content" && "$CATEGORY" != "question" && "$CATEGORY" != "bug" && "$CATEGORY" != "feature" ]]; then
+  if [[ "$CATEGORY" != "content" && "$CATEGORY" != "bug" && "$CATEGORY" != "feature" ]]; then
     echo "  WARNING: Unexpected category '$CATEGORY', defaulting to 'content'"
     CATEGORY="content"
   fi
 
   echo "  Category: $CATEGORY"
 
-  # ── Step 2: Route based on category ───────────────────────────
+  # ── Step 2: Build prompt based on category ────────────────────
 
   case "$CATEGORY" in
 
-    # ── BUG: label and leave open for developer ──
-    bug)
-      echo "  Routing as bug report..."
-      gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "bug" 2>/dev/null || true
-      REPLY="**Classified as: Bug Report** 🐛
-
-This has been tagged for developer attention. The automated agent does not modify UI/application code — a developer will review and address this.
-
-**Summary of report:** ${USER_COMMENT:0:200}"
-      gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$REPLY"
-      echo "  Labeled as bug, left open."
-      ;;
-
-    # ── FEATURE: label and leave open for developer ──
-    feature)
-      echo "  Routing as feature request..."
-      gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "enhancement" 2>/dev/null || true
-      REPLY="**Classified as: Feature Request** ✨
-
-This has been tagged for developer attention. The automated agent handles content updates only — UI and feature changes require a developer.
-
-**Summary of request:** ${USER_COMMENT:0:200}"
-      gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$REPLY"
-      echo "  Labeled as enhancement, left open."
-      ;;
-
-    # ── QUESTION: answer and close ──
-    question)
-      echo "  Answering question..."
-      NODE_CONTEXT=""
-      if [[ -f "$TOPIC_FILE" ]]; then
-        NODE_LABEL=$(jq -r --arg id "$NODE_ID" '.nodes[$id].label // "Unknown"' "$TOPIC_FILE")
-        NODE_SUMMARY=$(jq -r --arg id "$NODE_ID" '.nodes[$id].summary // ""' "$TOPIC_FILE")
-        NODE_CONTEXT="Node: $NODE_LABEL ($NODE_ID)\nSummary: $NODE_SUMMARY"
-      fi
-
-      ANSWER_PROMPT="A user asked a question about the AI Data Centers knowledge map.
-
-Node context:
-$NODE_CONTEXT
-
-User's question:
-$USER_COMMENT
-
-Provide a helpful, concise answer. Keep it under 300 words."
-
-      ANSWER=$(claude -p "$ANSWER_PROMPT" --output-format text 2>/dev/null) || {
-        echo "  ERROR: Claude failed. Skipping."
-        continue
-      }
-
-      gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$ANSWER"
-      gh issue close "$NUMBER" --repo "$FULL_REPO"
-      echo "  Question answered and closed."
-      ;;
-
-    # ── CONTENT: update the knowledge map ──
     content)
-      echo "  Updating knowledge map content..."
-
-      if [[ ! -f "$TOPIC_FILE" ]]; then
-        echo "  WARNING: Topic file $TOPIC_FILE not found. Closing with notice."
-        gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "Topic file \`topics/${TOPIC_ID}.json\` not found. Could not process this comment."
-        gh issue close "$NUMBER" --repo "$FULL_REPO"
-        continue
-      fi
-
-      CONTENT_PROMPT="A user submitted a content request on the AI Data Centers knowledge map (GitHub issue #${NUMBER}).
+      gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "$LABEL" 2>/dev/null || true
+      AGENT_PROMPT="You are an autonomous agent maintaining the AI Data Centers knowledge map.
+A user submitted a content request (GitHub issue #${NUMBER}).
 
 Topic ID: ${TOPIC_ID}
 Node ID: ${NODE_ID}
 Topic file: ${TOPIC_FILE}
+Project directory: ${PROJECT_DIR}
 
-User's comment/request:
+User's request:
 ${USER_COMMENT}
 
-Your job:
-1. Read the topic file: ${TOPIC_FILE}
-2. Find the node '${NODE_ID}' in the JSON
-3. Update the node's 'details' field (and 'summary' if appropriate) to address the user's request — add the requested information, fix errors, or enrich the content. Write in Markdown. Keep existing good content, add new content that addresses the request.
-4. Make sure the JSON remains valid (no trailing commas, proper escaping)
-5. Commit the change with message: 'update ${TOPIC_ID}: enrich ${NODE_ID} (from issue #${NUMBER})'
-6. Push to origin main
-7. Output a brief summary (2-3 sentences) of what you changed, so it can be posted back to the GitHub issue.
+YOUR TASK — do ALL of these steps:
+1. Read ${TOPIC_FILE} and find node '${NODE_ID}'
+2. Research/generate the content the user requested
+3. Update the node's 'details' field (and 'summary' if needed) with rich Markdown content addressing the request. Keep existing good content. Add new sections, tables, data, analysis as requested.
+4. Validate the JSON is correct: no trailing commas, proper escaping, all brackets matched. Run: jq . ${TOPIC_FILE} > /dev/null
+5. If validation fails, fix the JSON until it passes
+6. Commit: git add ${TOPIC_FILE} && git commit -m 'update ${TOPIC_ID}: enrich ${NODE_ID} (from issue #${NUMBER})'
+7. Pull latest and push: git pull --rebase origin main && git push origin main
+8. Output ONLY a 2-3 sentence summary of what content you added.
 
-IMPORTANT: Only modify the specific node's content. Do not restructure the JSON or modify other nodes. Write content in Markdown format inside the details field."
+RULES:
+- Only modify the specific node. Do not touch other nodes or restructure the JSON.
+- Write content in Markdown inside the details string field.
+- If the JSON is large, use targeted edits (Edit tool), not full file rewrites.
+- You MUST validate with jq before committing."
+      ALLOWED_TOOLS="Edit,Read,Bash(git *),Bash(jq *),Bash(cat *),Write"
+      ;;
 
-      RESPONSE=$(cd "$PROJECT_DIR" && claude -p "$CONTENT_PROMPT" --output-format text --allowedTools "Edit,Read,Bash(git *),Bash(jq *),Write" 2>&1) || {
-        echo "  ERROR: Claude agent failed. Skipping issue #$NUMBER."
-        echo "  Output: $RESPONSE"
-        continue
-      }
+    bug)
+      gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "bug" 2>/dev/null || true
+      AGENT_PROMPT="You are an autonomous agent maintaining the AI Data Centers knowledge map.
+A user reported a BUG (GitHub issue #${NUMBER}).
 
-      echo "  Claude response: $RESPONSE"
+Project directory: ${PROJECT_DIR}
+Main files:
+- ${PROJECT_DIR}/index.html (single-page app: HTML + CSS + JS all in one file)
+- ${PROJECT_DIR}/topics/*.json (data files)
+- ${PROJECT_DIR}/comments.config.json (GitHub integration config)
 
-      COMMENT_BODY="$(cat <<EOF
-**Knowledge map updated** ✅
+The bug was reported while viewing node '${NODE_ID}' in topic '${TOPIC_ID}'.
+
+User's bug report:
+${USER_COMMENT}
+
+YOUR TASK — do ALL of these steps:
+1. Read index.html and understand the relevant code
+2. Identify the root cause of the bug
+3. Fix the code — edit index.html (CSS, JS, or HTML as needed)
+4. Verify your fix makes sense (check for syntax errors, unmatched brackets, etc.)
+5. Commit: git add -A && git commit -m 'fix: [brief description] (from issue #${NUMBER})'
+6. Pull latest and push: git pull --rebase origin main && git push origin main
+7. Output ONLY a 2-3 sentence summary of what you fixed and how.
+
+RULES:
+- Make minimal, targeted changes. Don't refactor unrelated code.
+- Preserve existing functionality — only fix the reported bug.
+- Test your logic mentally: will this fix work for the described scenario?
+- If the bug is in the data (JSON), fix the data. If it's in the UI code, fix the code."
+      ALLOWED_TOOLS="Edit,Read,Bash(git *),Bash(jq *),Bash(cat *),Bash(node *),Write"
+      ;;
+
+    feature)
+      gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "enhancement" 2>/dev/null || true
+      AGENT_PROMPT="You are an autonomous agent maintaining the AI Data Centers knowledge map.
+A user requested a FEATURE (GitHub issue #${NUMBER}).
+
+Project directory: ${PROJECT_DIR}
+Main files:
+- ${PROJECT_DIR}/index.html (single-page app: ALL HTML + CSS + JS in one file)
+- ${PROJECT_DIR}/topics/*.json (data files loaded via fetch)
+- ${PROJECT_DIR}/comments.config.json (GitHub integration config)
+
+The request was made while viewing node '${NODE_ID}' in topic '${TOPIC_ID}'.
+
+User's feature request:
+${USER_COMMENT}
+
+YOUR TASK — do ALL of these steps:
+1. Read index.html to understand the current codebase
+2. Plan the implementation — keep it simple and minimal
+3. Implement the feature by editing index.html (add CSS, JS, HTML as needed)
+4. Verify: check for syntax errors, unmatched brackets, logic issues
+5. Commit: git add -A && git commit -m 'feat: [brief description] (from issue #${NUMBER})'
+6. Pull latest and push: git pull --rebase origin main && git push origin main
+7. Output ONLY a 2-3 sentence summary of what you implemented.
+
+RULES:
+- Keep changes minimal. Implement exactly what was requested, no more.
+- All code goes in index.html (inline CSS in <style>, inline JS in <script>).
+- Don't break existing features. Be careful with CSS specificity and JS globals.
+- If the feature requires data changes too, update topics/*.json as well.
+- Make sure it works on both desktop and mobile (the site uses @media max-width:768px)."
+      ALLOWED_TOOLS="Edit,Read,Bash(git *),Bash(jq *),Bash(cat *),Bash(node *),Write"
+      ;;
+  esac
+
+  # ── Step 3: Execute ───────────────────────────────────────────
+  echo "  Running Claude agent ($CATEGORY)..."
+  RESPONSE=$(cd "$PROJECT_DIR" && claude -p "$AGENT_PROMPT" --output-format text --allowedTools "$ALLOWED_TOOLS" 2>&1) || {
+    echo "  ERROR: Claude agent failed on issue #$NUMBER."
+    echo "  Output: $RESPONSE"
+    # Post failure notice but still close — don't leave issues dangling
+    gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "**Agent failed to process this issue.** The error has been logged. A developer will investigate.
+
+\`\`\`
+${RESPONSE:0:500}
+\`\`\`"
+    continue
+  }
+
+  echo "  Agent output: $RESPONSE"
+
+  # ── Step 4: Post result and close ─────────────────────────────
+  case "$CATEGORY" in
+    content)
+      COMMENT_BODY="**Knowledge map updated** ✅
 
 ${RESPONSE}
 
-The change has been pushed to main and will be live on the site shortly.
-EOF
-)"
-      gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$COMMENT_BODY"
-      gh issue close "$NUMBER" --repo "$FULL_REPO"
-      echo "  Content updated, issue closed."
+The change has been pushed to main and will be live shortly."
+      ;;
+    bug)
+      COMMENT_BODY="**Bug fixed** 🐛✅
+
+${RESPONSE}
+
+The fix has been pushed to main and will be live shortly."
+      ;;
+    feature)
+      COMMENT_BODY="**Feature implemented** ✨✅
+
+${RESPONSE}
+
+The change has been pushed to main and will be live shortly."
       ;;
   esac
+
+  echo "  Posting result and closing issue #$NUMBER..."
+  gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "$COMMENT_BODY"
+  gh issue close "$NUMBER" --repo "$FULL_REPO"
+  echo "  Issue #$NUMBER resolved and closed."
 
 done
 
