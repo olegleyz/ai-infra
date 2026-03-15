@@ -170,12 +170,24 @@ run_agent() {
   echo "$result"
 }
 
+# Helper: run_agent with 1 retry on failure
+run_agent_retry() {
+  local label="$1"
+  local output
+  output=$(run_agent "$@") && { echo "$output"; return 0; }
+  echo "  [$label] First attempt failed. Retrying..."
+  output=$(run_agent "$@") && { echo "$output"; return 0; }
+  echo "  [$label] Second attempt also failed."
+  echo "$output"
+  return 1
+}
+
 # ════════════════════════════════════════════════════════════════
 # STAGE 1: Product Agent — Requirements & Acceptance Criteria
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 1: Product Agent ──────────────────────────────"
 
-REQUIREMENTS=$(run_agent "Product" "You are a Product Manager AI agent. Your job is to convert a vague user feature request into a complete, unambiguous specification.
+REQUIREMENTS=$(run_agent_retry "Product" "You are a Product Manager AI agent. Your job is to convert a vague user feature request into a complete, unambiguous specification.
 
 PROJECT CONTEXT:
 - Single-page knowledge map app: one index.html file containing all HTML, CSS, and JS
@@ -233,7 +245,7 @@ echo "── Stage 2: Architect Agent ──────────────
 
 CODEBASE_SUMMARY=$(cd "$PROJECT_DIR" && head -250 index.html | tail -235)
 
-DESIGN=$(run_agent "Architect" "You are a Principal Engineer AI agent. Your job is to design the best implementation for a feature, considering the existing codebase.
+DESIGN=$(run_agent_retry "Architect" "You are a Principal Engineer AI agent. Your job is to design the best implementation for a feature, considering the existing codebase.
 
 PROJECT CONTEXT:
 - Single-page app: index.html (~950 lines of HTML+CSS+JS)
@@ -301,7 +313,7 @@ echo "  [Architect] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 3: Review Agent ────────────────────────────────"
 
-REVIEW=$(run_agent "Review" "You are a Senior Engineer AI agent performing a peer review. Be critical but constructive. Your job is to catch problems BEFORE code is written.
+REVIEW=$(run_agent_retry "Review" "You are a Senior Engineer AI agent performing a peer review. Be critical but constructive. Your job is to catch problems BEFORE code is written.
 
 REQUIREMENTS:
 ${REQUIREMENTS}
@@ -351,7 +363,7 @@ echo "  [Review] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 4: Resolve Agent ───────────────────────────────"
 
-FINAL_PLAN=$(run_agent "Resolve" "You are a Principal Engineer AI agent. You've received peer review feedback on your design. Address every issue raised and produce the FINAL implementation plan.
+FINAL_PLAN=$(run_agent_retry "Resolve" "You are a Principal Engineer AI agent. You've received peer review feedback on your design. Address every issue raised and produce the FINAL implementation plan.
 
 ORIGINAL REQUIREMENTS:
 ${REQUIREMENTS}
@@ -400,7 +412,7 @@ echo "  [Resolve] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 5: Implement Agent ─────────────────────────────"
 
-IMPL_RESULT=$(run_agent "Implement" "You are a Senior Developer AI agent. Implement the feature according to the final plan below. You have full access to read and edit files.
+IMPL_RESULT=$(run_agent_retry "Implement" "You are a Senior Developer AI agent. Implement the feature according to the final plan below. You have full access to read and edit files.
 
 PROJECT DIRECTORY: ${PROJECT_DIR}
 MAIN FILE: ${PROJECT_DIR}/index.html (single-page app: HTML + CSS + JS all in one file)
@@ -442,7 +454,7 @@ echo "  [Implement] Done."
 # ════════════════════════════════════════════════════════════════
 echo "── Stage 6: Test Agent ──────────────────────────────────"
 
-TEST_RESULT=$(run_agent "Test" "You are a QA Engineer AI agent. Verify that the implemented feature meets all requirements and doesn't break anything.
+TEST_RESULT=$(run_agent_retry "Test" "You are a QA Engineer AI agent. Verify that the implemented feature meets all requirements and doesn't break anything.
 
 PROJECT DIRECTORY: ${PROJECT_DIR}
 MAIN FILE: ${PROJECT_DIR}/index.html
@@ -501,7 +513,7 @@ if echo "$TEST_RESULT" | grep -qi "overall verdict.*fail"; then
   echo "  [Test] FAILED — attempting fix cycle..."
 
   # ── Fix cycle: send failures back to implement agent ──
-  FIX_RESULT=$(run_agent "Fix" "You are a Senior Developer AI agent. The QA team found issues with your implementation. Fix them.
+  FIX_RESULT=$(run_agent_retry "Fix" "You are a Senior Developer AI agent. The QA team found issues with your implementation. Fix them.
 
 PROJECT DIRECTORY: ${PROJECT_DIR}
 MAIN FILE: ${PROJECT_DIR}/index.html
