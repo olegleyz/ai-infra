@@ -1,8 +1,8 @@
 [
   {
     "id": "ai-dc",
-    "label": "AI Data Centers",
+    "label": {"en": "AI Data Centers", "ru": "ИИ дата-центры"},
     "icon": "🏗️",
-    "description": "Value chain, players, opportunities in the $300B+ AI infrastructure boom"
+    "description": {"en": "Value chain, players, opportunities in the $300B+ AI infrastructure boom", "ru": "Цепочка ценности, игроки, возможности в индустрии ИИ инфраструктуры стоимостью $300B+"}
   }
 ]

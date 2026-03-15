@@ -229,6 +229,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .gh-submit-btn { background:var(--bg3); border:1px solid var(--border); color:var(--text2); cursor:pointer; font-size:11px; padding:4px 10px; border-radius:4px; display:flex; align-items:center; gap:4px; }
 .gh-submit-btn:hover { border-color:var(--accent); color:var(--text); }
 
+#lang-switcher { display:flex; gap:2px; background:var(--bg3); border-radius:6px; padding:2px; flex-shrink:0; }
+#lang-switcher button { background:none; border:none; color:var(--text2); padding:4px 10px; border-radius:4px; font-size:12px; font-weight:600; cursor:pointer; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s; }
+#lang-switcher button:hover { color:var(--text); }
+#lang-switcher button.active { background:var(--accent); color:#fff; }
+
 /* Responsive */
 @media (max-width:768px) {
   #sidebar { display:none; }
@@ -238,7 +243,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   #topbar { flex-wrap:wrap; padding:8px 12px; gap:8px; }
   #topbar h1 { font-size:14px; order:1; }
   #topic-select { order:2; font-size:12px; }
-  #notif-wrapper { order:3; margin-left:auto; }
+  #lang-switcher { order:3; margin-left:0; }
+  #notif-wrapper { order:4; margin-left:auto; }
   #breadcrumbs { order:4; flex-basis:100%; font-size:12px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   #breadcrumbs::-webkit-scrollbar { display:none; }
   #search-box { order:5; flex-basis:100%; }
@@ -295,6 +301,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       <input type="text" id="search-input" placeholder="Search nodes..." autocomplete="off">
       <div id="search-results"></div>
     </div>
+    <div id="lang-switcher" role="radiogroup" aria-label="Language"></div>
     <div id="notif-wrapper" style="position:relative;display:none;">
       <div id="notif-bell" onclick="toggleNotifPanel()">🔔<span id="notif-count" class="hidden">0</span></div>
       <div class="notif-panel" id="notif-panel">
@@ -338,6 +345,61 @@ let currentPath = ['root'];
 let selectedNodeId = null;
 let ghConfig = null;
 
+// --- Hash routing ---
+let _isRestoring = false;
+
+function buildHash(topicId, path, selNodeId) {
+  var segments = [topicId];
+  for (var i = 1; i < path.length; i++) {
+    segments.push(path[i]);
+  }
+  if (selNodeId && !path.includes(selNodeId)) {
+    segments.push(selNodeId);
+  }
+  return segments.join('/');
+}
+
+function parseHash(hash) {
+  var raw = hash.replace(/^#/, '');
+  var parts = raw.split('/').filter(Boolean);
+  if (parts.length === 0) return null;
+  return { topicId: parts[0], segments: parts.slice(1) };
+}
+
+function pushHash() {
+  if (_isRestoring) return;
+  var hash = buildHash(currentTopicId, currentPath, selectedNodeId);
+  var stateObj = {
+    topicId: currentTopicId,
+    path: currentPath.slice(),
+    selectedNodeId: selectedNodeId
+  };
+  history.pushState(stateObj, '', location.search + '#' + hash);
+}
+
+function replaceHash() {
+  var hash = buildHash(currentTopicId, currentPath, selectedNodeId);
+  var stateObj = {
+    topicId: currentTopicId,
+    path: currentPath.slice(),
+    selectedNodeId: selectedNodeId
+  };
+  history.replaceState(stateObj, '', location.search + '#' + hash);
+}
+
+function showToast(msg) {
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:8px;font-size:13px;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;transition:opacity 0.3s;';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  el.offsetHeight;
+  el.style.opacity = '1';
+  setTimeout(function() {
+    el.style.opacity = '0';
+    el.addEventListener('transitionend', function() { el.remove(); });
+  }, 3000);
+}
+
 // --- Category styling ---
 const CAT_COLORS = {
   'value-chain': '#6c8cff', 'power': '#fbbf24', 'hardware': '#34d399',
@@ -346,13 +408,203 @@ const CAT_COLORS = {
   'construction': '#f59e0b', 'cooling': '#06b6d4', 'integration': '#8b5cf6',
   'operations': '#ec4899'
 };
-const CAT_LABELS = {
-  'value-chain': 'Value Chain', 'power': 'Power & Energy', 'hardware': 'Hardware',
-  'software': 'Software', 'market': 'Market', 'opportunity': 'Opportunity',
-  'strategy': 'Strategy', 'player': 'Player', 'risk': 'Risk',
-  'construction': 'Construction', 'cooling': 'Cooling', 'integration': 'Integration',
-  'operations': 'Operations'
+
+// ===== LANGUAGE REGISTRY =====
+const LANGUAGES = [
+  { code: 'en', label: 'EN', name: 'English' },
+  { code: 'ru', label: 'RU', name: 'Русский' }
+];
+
+let currentLang = 'en';
+
+const UI_STRINGS = {
+  en: {
+    searchPlaceholder: 'Search nodes...',
+    loading: 'Loading...',
+    connectedNodes: 'Connected Nodes',
+    subTopics: 'Sub-topics',
+    yourNotes: 'Your Notes',
+    notesPlaceholder: 'Add your thoughts, questions, or feedback about this topic...',
+    saved: 'Saved',
+    copyForClaude: '📋 Copy for Claude',
+    submitToGitHub: '🐙 Submit to GitHub',
+    exportComments: '📋 Export Comments',
+    noComments: 'No comments yet. Add comments to nodes in the detail panel.',
+    resolvedComments: 'Resolved Comments',
+    noResolved: 'No resolved comments yet',
+    clickToExplore: 'click to explore',
+    clickForDetails: 'Click for details',
+    connections: 'connections',
+    subTopicsCount: 'sub-topics',
+    copiedToClipboard: '✅ Copied to clipboard!',
+    copied: '✅ Copied!',
+    detailsComingSoon: 'Details coming soon. This node can be extended with more research.',
+    noDetails: 'No additional details yet.',
+    resolved: 'Resolved',
+    'cat.value-chain': 'Value Chain',
+    'cat.power': 'Power & Energy',
+    'cat.hardware': 'Hardware',
+    'cat.software': 'Software',
+    'cat.market': 'Market',
+    'cat.opportunity': 'Opportunity',
+    'cat.strategy': 'Strategy',
+    'cat.player': 'Player',
+    'cat.risk': 'Risk',
+    'cat.construction': 'Construction',
+    'cat.cooling': 'Cooling',
+    'cat.integration': 'Integration',
+    'cat.operations': 'Operations'
+  },
+  ru: {
+    searchPlaceholder: 'Поиск...',
+    loading: 'Загрузка...',
+    connectedNodes: 'Связанные узлы',
+    subTopics: 'Подтемы',
+    yourNotes: 'Ваши заметки',
+    notesPlaceholder: 'Добавьте свои мысли, вопросы или отзывы по этой теме...',
+    saved: 'Сохранено',
+    copyForClaude: '📋 Копировать для Claude',
+    submitToGitHub: '🐙 Отправить на GitHub',
+    exportComments: '📋 Экспорт комментариев',
+    noComments: 'Пока нет комментариев. Добавьте комментарии к узлам в панели деталей.',
+    resolvedComments: 'Решённые комментарии',
+    noResolved: 'Решённых комментариев пока нет',
+    clickToExplore: 'нажмите для просмотра',
+    clickForDetails: 'Нажмите для подробностей',
+    connections: 'связей',
+    subTopicsCount: 'подтем',
+    copiedToClipboard: '✅ Скопировано!',
+    copied: '✅ Скопировано!',
+    detailsComingSoon: 'Подробности скоро появятся. Этот узел можно расширить дополнительными исследованиями.',
+    noDetails: 'Дополнительных подробностей пока нет.',
+    resolved: 'Решено',
+    'cat.value-chain': 'Цепочка ценности',
+    'cat.power': 'Энергия',
+    'cat.hardware': 'Оборудование',
+    'cat.software': 'ПО',
+    'cat.market': 'Рынок',
+    'cat.opportunity': 'Возможности',
+    'cat.strategy': 'Стратегия',
+    'cat.player': 'Игрок',
+    'cat.risk': 'Риски',
+    'cat.construction': 'Строительство',
+    'cat.cooling': 'Охлаждение',
+    'cat.integration': 'Интеграция',
+    'cat.operations': 'Операции'
+  }
 };
+
+function t(key) {
+  return (UI_STRINGS[currentLang] && UI_STRINGS[currentLang][key])
+    || UI_STRINGS['en'][key] || key;
+}
+
+function L(field) {
+  if (field === null || field === undefined) return '';
+  if (typeof field === 'string') return field;
+  const result = field[currentLang];
+  if (result !== undefined) return result;
+  if (currentLang !== 'en') {
+    console.warn('[i18n] Missing translation for lang=' + currentLang, field);
+  }
+  return field['en'] || '';
+}
+
+// ===== LANGUAGE HELPERS =====
+function getInitialLang() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlLang = urlParams.get('lang');
+  if (urlLang && LANGUAGES.some(l => l.code === urlLang)) return urlLang;
+  const stored = localStorage.getItem('knowledgeMapLang');
+  if (stored && LANGUAGES.some(l => l.code === stored)) return stored;
+  return 'en';
+}
+
+function updateURLLang() {
+  var url = new URL(window.location);
+  url.searchParams.set('lang', currentLang);
+  history.replaceState(history.state, '', url);
+}
+
+function initLangSwitcher() {
+  const container = document.getElementById('lang-switcher');
+  if (!container) return;
+  container.innerHTML = LANGUAGES.map(lang =>
+    '<button data-lang="' + lang.code + '" role="radio" aria-checked="' + (lang.code === currentLang) + '" aria-label="' + lang.name + '" title="' + lang.name + '"' +
+    (lang.code === currentLang ? ' class="active"' : '') + '>' + lang.label + '</button>'
+  ).join('');
+  container.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => switchLanguage(btn.dataset.lang));
+  });
+}
+
+function switchLanguage(langCode) {
+  if (langCode === currentLang) return;
+  if (!LANGUAGES.some(l => l.code === langCode)) return;
+  currentLang = langCode;
+  localStorage.setItem('knowledgeMapLang', langCode);
+  document.documentElement.lang = langCode;
+  updateURLLang();
+
+  // Preserve scroll positions
+  const graphContainer = document.getElementById('graph-container');
+  const detailPanel = document.getElementById('detail-panel');
+  const graphScroll = graphContainer ? graphContainer.scrollTop : 0;
+  const detailScroll = detailPanel ? detailPanel.scrollTop : 0;
+
+  // Re-render all views
+  renderBreadcrumbs();
+  renderTree();
+  renderGrid();
+
+  if (selectedNodeId) {
+    selectNode(selectedNodeId, true);
+  }
+
+  // Re-render search results if active
+  const si = document.getElementById('search-input');
+  if (si && si.value.trim().length >= 2) {
+    si.dispatchEvent(new Event('input'));
+  }
+
+  // Restore scroll positions
+  if (graphContainer) graphContainer.scrollTop = graphScroll;
+  if (detailPanel) detailPanel.scrollTop = detailScroll;
+
+  // Update UI chrome
+  if (si) si.placeholder = t('searchPlaceholder');
+
+  // Update export button
+  const exportBtn = document.getElementById('export-btn');
+  if (exportBtn) exportBtn.innerHTML = t('exportComments');
+
+  // Update topic select labels
+  const select = document.getElementById('topic-select');
+  if (select && topicRegistry.length > 0) {
+    topicRegistry.forEach((topic, i) => {
+      if (select.options[i]) {
+        select.options[i].textContent = (topic.icon || '') + ' ' + L(topic.label);
+      }
+    });
+  }
+
+  // Update notification panel header
+  const notifHeader = document.querySelector('.notif-panel-header');
+  if (notifHeader) notifHeader.textContent = t('resolvedComments');
+
+  // Update page title
+  if (topicData) {
+    document.title = L(topicData.meta.label) + ' — Knowledge Map';
+    document.querySelector('#topbar h1').innerHTML = '<span>' + topicData.meta.icon + '</span> ' + L(topicData.meta.label);
+  }
+
+  // Update switcher
+  document.querySelectorAll('#lang-switcher button').forEach(btn => {
+    const isActive = btn.dataset.lang === langCode;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-checked', isActive);
+  });
+}
 
 // --- Configure marked.js ---
 const renderer = new marked.Renderer();
@@ -432,10 +684,10 @@ async function loadTopicRegistry() {
   topicRegistry = await resp.json();
   const select = document.getElementById('topic-select');
   select.innerHTML = '';
-  topicRegistry.forEach(t => {
+  topicRegistry.forEach(topic => {
     const opt = document.createElement('option');
-    opt.value = t.id;
-    opt.textContent = t.icon + ' ' + t.label;
+    opt.value = topic.id;
+    opt.textContent = (topic.icon || '') + ' ' + L(topic.label);
     select.appendChild(opt);
   });
   select.onchange = () => loadTopic(select.value);
@@ -443,18 +695,15 @@ async function loadTopicRegistry() {
 
 async function loadTopic(id) {
   currentTopicId = id;
-  document.getElementById('node-grid').innerHTML = '<div id="loading">Loading...</div>';
+  document.getElementById('node-grid').innerHTML = '<div id="loading">' + t('loading') + '</div>';
   const resp = await fetch('topics/' + id + '.json?v=' + Date.now());
   topicData = await resp.json();
   buildParentMap();
 
   // Update page title
-  document.title = topicData.meta.label + ' — Knowledge Map';
-  document.querySelector('#topbar h1').innerHTML = '<span>' + topicData.meta.icon + '</span> ' + topicData.meta.label;
+  document.title = L(topicData.meta.label) + ' — Knowledge Map';
+  document.querySelector('#topbar h1').innerHTML = '<span>' + topicData.meta.icon + '</span> ' + L(topicData.meta.label);
 
-  // Reset navigation
-  currentPath = ['root'];
-  selectedNodeId = null;
   navigateTo(['root']);
 }
 
@@ -484,7 +733,7 @@ function getAllComments() {
       if (key.startsWith(prefix)) {
         const nodeId = key.slice(prefix.length);
         const node = getNode(nodeId);
-        comments[nodeId] = { label: node ? node.label : nodeId, text: localStorage.getItem(key) };
+        comments[nodeId] = { label: node ? L(node.label) : nodeId, text: localStorage.getItem(key) };
       }
     }
   } catch(e) {}
@@ -495,15 +744,15 @@ function exportComments() {
   const comments = getAllComments();
   const entries = Object.entries(comments);
   if (entries.length === 0) { alert('No comments yet. Add comments to nodes in the detail panel.'); return; }
-  const topicLabel = topicData ? topicData.meta.label : 'Knowledge Map';
+  const topicLabel = topicData ? L(topicData.meta.label) : 'Knowledge Map';
   let text = '# My Comments on ' + topicLabel + '\n# ' + new Date().toISOString().slice(0,10) + '\n\n';
   entries.forEach(([id, c]) => {
     text += '## ' + c.label + ' (' + id + ')\n' + c.text + '\n\n';
   });
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('export-btn');
-    btn.textContent = '✅ Copied to clipboard!';
-    setTimeout(() => { btn.innerHTML = '📋 Export Comments'; }, 2000);
+    btn.textContent = t('copiedToClipboard');
+    setTimeout(() => { btn.innerHTML = t('exportComments'); }, 2000);
   }).catch(() => {
     const blob = new Blob([text], {type:'text/markdown'});
     const url = URL.createObjectURL(blob);
@@ -517,15 +766,15 @@ function copyForClaude(nodeId) {
   if (!node) return;
   const comment = getComment(nodeId);
   const conns = getConnections(nodeId);
-  const topicLabel = topicData ? topicData.meta.label : '';
-  let text = 'I am looking at the node "' + node.label + '" in my ' + topicLabel + ' knowledge map.\n\n';
-  text += 'Summary: ' + node.summary + '\n\n';
+  const topicLabel = topicData ? L(topicData.meta.label) : '';
+  let text = 'I am looking at the node "' + L(node.label) + '" in my ' + topicLabel + ' knowledge map.\n\n';
+  text += 'Summary: ' + L(node.summary) + '\n\n';
   if (comment) text += 'My comment/question: ' + comment + '\n\n';
-  if (conns.length > 0) text += 'Connected to: ' + conns.map(c => c.target.label + ' (' + c.label + ')').join(', ') + '\n\n';
+  if (conns.length > 0) text += 'Connected to: ' + conns.map(c => L(c.target.label) + ' (' + L(c.label) + ')').join(', ') + '\n\n';
   text += 'Please help me understand this deeper / answer my questions.';
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.querySelector('.copy-claude-btn');
-    if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = '📋 Copy for Claude'; }, 2000); }
+    if (btn) { btn.textContent = t('copied'); setTimeout(() => { btn.textContent = t('copyForClaude'); }, 2000); }
   });
 }
 
@@ -550,12 +799,12 @@ function submitToGitHub(nodeId) {
   const comment = textarea ? textarea.value.trim() : '';
   if (!comment) { alert('Please write a comment before submitting to GitHub.'); return; }
 
-  const topicLabel = topicData ? topicData.meta.label : currentTopicId;
-  const pathLabels = getPath(nodeId).map(pid => { const n = getNode(pid); return n ? n.label : pid; }).join(' › ');
+  const topicLabel = topicData ? L(topicData.meta.label) : currentTopicId;
+  const pathLabels = getPath(nodeId).map(pid => { const n = getNode(pid); return n ? L(n.label) : pid; }).join(' › ');
   const titleText = comment.length > 60 ? comment.slice(0, 60) + '...' : comment;
   const title = '[' + currentTopicId + ':' + nodeId + '] ' + titleText;
   const body = '**Topic:** ' + topicLabel + '\n' +
-    '**Node:** ' + node.label + ' (' + nodeId + ')\n' +
+    '**Node:** ' + L(node.label) + ' (' + nodeId + ')\n' +
     '**Path:** ' + pathLabels + '\n\n---\n\n' + comment;
   const labels = ghConfig.labels ? ghConfig.labels.join(',') : 'user-comment';
 
@@ -611,7 +860,7 @@ function renderNotifications(issues) {
   }
 
   if (issues.length === 0) {
-    list.innerHTML = '<div class="notif-empty">No resolved comments yet</div>';
+    list.innerHTML = '<div class="notif-empty">' + t('noResolved') + '</div>';
     return;
   }
 
@@ -619,12 +868,12 @@ function renderNotifications(issues) {
     const match = issue.title.match(/^\[([^:]+):([^\]]+)\]/);
     const nodeId = match ? match[2] : null;
     const node = nodeId ? getNode(nodeId) : null;
-    const nodeLabel = node ? (node.icon + ' ' + node.label) : (nodeId || 'Unknown');
+    const nodeLabel = node ? (node.icon + ' ' + L(node.label)) : (nodeId || 'Unknown');
     const date = new Date(issue.closed_at).toLocaleDateString();
     const preview = issue.body ? issue.body.split('---').pop().trim().slice(0, 100) : '';
     return '<div class="notif-item" onclick="window.open(\'' + issue.html_url + '\', \'_blank\')">' +
       '<div class="notif-node">' + nodeLabel + '</div>' +
-      '<div class="notif-date">Resolved ' + date + '</div>' +
+      '<div class="notif-date">' + t('resolved') + ' ' + date + '</div>' +
       (preview ? '<div class="notif-preview">' + preview + '</div>' : '') +
     '</div>';
   }).join('');
@@ -652,6 +901,97 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// --- Navigation state restoration ---
+function _closeDetailSilent() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('export-btn').style.display = '';
+  selectedNodeId = null;
+  renderTree();
+}
+
+function restoreFromState(state) {
+  if (_isRestoring) return;
+  _isRestoring = true;
+
+  var needTopicLoad = state.topicId && state.topicId !== currentTopicId;
+
+  if (needTopicLoad) {
+    var pendingState = state;
+    document.getElementById('topic-select').value = state.topicId;
+    loadTopic(state.topicId).then(function() {
+      currentPath = pendingState.path || ['root'];
+      renderBreadcrumbs();
+      renderTree();
+      renderGrid();
+      if (pendingState.selectedNodeId) {
+        selectNode(pendingState.selectedNodeId, true);
+      } else {
+        _closeDetailSilent();
+      }
+      _isRestoring = false;
+    }).catch(function() {
+      _isRestoring = false;
+    });
+  } else {
+    currentPath = state.path || ['root'];
+    renderBreadcrumbs();
+    renderTree();
+    renderGrid();
+    document.getElementById('graph-container').scrollTop = 0;
+    if (state.selectedNodeId) {
+      selectNode(state.selectedNodeId, true);
+    } else {
+      _closeDetailSilent();
+    }
+    _isRestoring = false;
+  }
+}
+
+function restoreFromHash() {
+  var parsed = parseHash(location.hash);
+  if (!parsed) {
+    if (topicData) {
+      _isRestoring = true;
+      _navigateCore(['root']);
+      _isRestoring = false;
+    }
+    return;
+  }
+
+  var syntheticState = { topicId: parsed.topicId, path: ['root'], selectedNodeId: null };
+
+  if (!topicRegistry.find(function(t) { return t.id === parsed.topicId; })) {
+    syntheticState.topicId = currentTopicId || topicRegistry[0].id;
+  }
+
+  if (parsed.segments.length > 0) {
+    syntheticState.path = ['root'].concat(parsed.segments);
+  }
+
+  restoreFromState(syntheticState);
+}
+
+// Language sync + navigation on browser Back/Forward
+window.addEventListener('popstate', function(e) {
+  var urlParams = new URLSearchParams(window.location.search);
+  var urlLang = urlParams.get('lang');
+  if (urlLang && urlLang !== currentLang && LANGUAGES.some(function(l) { return l.code === urlLang; })) {
+    switchLanguage(urlLang);
+  }
+
+  if (e.state && e.state.topicId) {
+    restoreFromState(e.state);
+  } else if (location.hash) {
+    restoreFromHash();
+  } else {
+    if (topicData) {
+      _isRestoring = true;
+      _navigateCore(['root']);
+      _isRestoring = false;
+    }
+  }
+});
+
 // --- Rendering ---
 function getCurrentNode() {
   if (!topicData) return null;
@@ -671,7 +1011,7 @@ function renderBreadcrumbs() {
     }
     const crumb = document.createElement('span');
     crumb.className = 'crumb' + (i === currentPath.length - 1 ? ' active' : '');
-    crumb.textContent = node ? (node.icon + ' ' + node.label) : id;
+    crumb.textContent = node ? (node.icon + ' ' + L(node.label)) : id;
     crumb.onclick = () => navigateTo(currentPath.slice(0, i + 1));
     el.appendChild(crumb);
   });
@@ -698,7 +1038,7 @@ function renderTree() {
     dot.style.background = CAT_COLORS[node.category] || '#666';
     item.appendChild(dot);
     const label = document.createElement('span');
-    label.textContent = node.icon + ' ' + node.label;
+    label.textContent = node.icon + ' ' + L(node.label);
     item.appendChild(label);
     item.onclick = (e) => {
       e.stopPropagation();
@@ -721,7 +1061,7 @@ function renderGrid() {
   const node = getNode(currentId);
   if (!node) return;
   const header = document.getElementById('level-header');
-  header.innerHTML = '<h2>' + node.icon + ' ' + node.label + '</h2><div class="level-desc">' + node.summary + '</div>';
+  header.innerHTML = '<h2>' + node.icon + ' ' + L(node.label) + '</h2><div class="level-desc">' + L(node.summary) + '</div>';
 
   // Legend
   const legend = document.getElementById('legend');
@@ -732,7 +1072,7 @@ function renderGrid() {
   cats.forEach(cat => {
     const item = document.createElement('span');
     item.className = 'legend-item';
-    item.innerHTML = '<span class="legend-dot" style="background:' + (CAT_COLORS[cat]||'#666') + '"></span>' + (CAT_LABELS[cat]||cat);
+    item.innerHTML = '<span class="legend-dot" style="background:' + (CAT_COLORS[cat]||'#666') + '"></span>' + (t('cat.'+cat)||cat);
     legend.appendChild(item);
   });
 
@@ -741,7 +1081,7 @@ function renderGrid() {
 
   if (childIds.length === 0) {
     // Leaf node — show details inline
-    grid.innerHTML = '<div style="max-width:800px">' + renderContent(node.details || '<p>No additional details yet.</p>') + '</div>';
+    grid.innerHTML = '<div style="max-width:800px">' + renderContent(L(node.details) || '<p>' + t('noDetails') + '</p>') + '</div>';
     return;
   }
 
@@ -773,35 +1113,40 @@ function renderGrid() {
     }
 
     const connCount = topicData.edges.filter(c => c.from === childId || c.to === childId).length;
-    const connBadge = connCount > 0 ? ' · ' + connCount + ' connections' : '';
+    const connBadge = connCount > 0 ? ' · ' + connCount + ' ' + t('connections') : '';
     let childCount = '';
     if (hasChildren(childId)) {
       childCount = '<div class="node-children-count"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>' +
-        getChildren(childId).length + ' sub-topics' + connBadge + ' — click to explore</div>';
+        getChildren(childId).length + ' ' + t('subTopicsCount') + connBadge + ' — ' + t('clickToExplore') + '</div>';
     } else {
       childCount = '<div class="node-children-count"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' +
-        'Click for details' + connBadge + '</div>';
+        t('clickForDetails') + connBadge + '</div>';
     }
 
     card.innerHTML =
-      '<div class="node-header"><span class="node-icon">' + child.icon + '</span><span class="node-title">' + child.label + '</span></div>' +
-      '<div class="node-summary">' + child.summary + '</div>' +
+      '<div class="node-header"><span class="node-icon">' + child.icon + '</span><span class="node-title">' + L(child.label) + '</span></div>' +
+      '<div class="node-summary">' + L(child.summary) + '</div>' +
       tagsHtml + childCount;
     grid.appendChild(card);
   });
 }
 
-function navigateTo(path) {
+function _navigateCore(path) {
   currentPath = path;
   selectedNodeId = null;
   renderBreadcrumbs();
   renderTree();
   renderGrid();
-  closeDetail();
+  _closeDetailSilent();
   document.getElementById('graph-container').scrollTop = 0;
 }
 
-function selectNode(id) {
+function navigateTo(path) {
+  _navigateCore(path);
+  pushHash();
+}
+
+function selectNode(id, silent) {
   selectedNodeId = id;
   const node = getNode(id);
   if (!node) return;
@@ -817,46 +1162,46 @@ function selectNode(id) {
   let connectionsHtml = '';
   if (conns.length > 0) {
     connectionsHtml = '<div class="connections">' +
-      '<h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> Connected Nodes (' + conns.length + ')</h4>' +
+      '<h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> ' + t('connectedNodes') + ' (' + conns.length + ')</h4>' +
       conns.map(c => '<div class="conn-item" onclick="goToNode(\'' + c.targetId + '\')">' +
         '<span class="conn-arrow">' + c.direction + '</span>' +
-        '<span class="conn-target">' + c.target.icon + ' ' + c.target.label + '</span>' +
-        '<span class="conn-label">' + c.label + '</span>' +
+        '<span class="conn-target">' + c.target.icon + ' ' + L(c.target.label) + '</span>' +
+        '<span class="conn-label">' + L(c.label) + '</span>' +
       '</div>').join('') +
     '</div>';
   }
 
   const safeId = id.replace(/'/g, "\\'");
   let commentHtml = '<div class="comment-section">' +
-    '<h4>Your Notes</h4>' +
-    '<textarea class="comment-textarea" placeholder="Add your thoughts, questions, or feedback about this topic..." oninput="saveComment(\'' + safeId + '\', this.value); document.getElementById(\'comment-saved-' + id + '\').classList.add(\'show\'); setTimeout(()=>document.getElementById(\'comment-saved-' + id + '\').classList.remove(\'show\'),1500)">' + comment + '</textarea>' +
-    '<div class="comment-saved" id="comment-saved-' + id + '">Saved</div>' +
+    '<h4>' + t('yourNotes') + '</h4>' +
+    '<textarea class="comment-textarea" placeholder="' + t('notesPlaceholder') + '" oninput="saveComment(\'' + safeId + '\', this.value); document.getElementById(\'comment-saved-' + id + '\').classList.add(\'show\'); setTimeout(()=>document.getElementById(\'comment-saved-' + id + '\').classList.remove(\'show\'),1500)">' + comment + '</textarea>' +
+    '<div class="comment-saved" id="comment-saved-' + id + '">' + t('saved') + '</div>' +
     '<div class="action-btns">' +
-      '<button class="action-btn copy-claude-btn" onclick="copyForClaude(\'' + safeId + '\')">📋 Copy for Claude</button>' +
-      (ghConfig ? '<button class="action-btn gh-submit-btn" onclick="submitToGitHub(\'' + safeId + '\')">🐙 Submit to GitHub</button>' : '') +
+      '<button class="action-btn copy-claude-btn" onclick="copyForClaude(\'' + safeId + '\')">' + t('copyForClaude') + '</button>' +
+      (ghConfig ? '<button class="action-btn gh-submit-btn" onclick="submitToGitHub(\'' + safeId + '\')">' + t('submitToGitHub') + '</button>' : '') +
     '</div>' +
   '</div>';
 
   // Render narrative and details through marked if they look like Markdown
-  const narrativeHtml = hasNarrative ? '<div class="narrative">' + renderContent(node.narrative) + '</div>' : '';
-  const detailsHtml = renderContent(node.details || '<p>Details coming soon. This node can be extended with more research.</p>');
+  const narrativeHtml = hasNarrative ? '<div class="narrative">' + renderContent(L(node.narrative)) + '</div>' : '';
+  const detailsHtml = renderContent(L(node.details) || '<p>' + t('detailsComingSoon') + '</p>');
 
   // Sub-topics nav
   let subTopicsHtml = '';
   if (hasChildren(id)) {
     const childIds = getChildren(id);
-    subTopicsHtml = '<div class="detail-nav"><h4>Sub-topics</h4>' +
+    subTopicsHtml = '<div class="detail-nav"><h4>' + t('subTopics') + '</h4>' +
       childIds.map(cid => {
         const c = getNode(cid);
-        return c ? '<div class="nav-link" onclick="navigateTo(getPath(\'' + cid + '\'))">' + c.icon + ' ' + c.label + '</div>' : '';
+        return c ? '<div class="nav-link" onclick="navigateTo(getPath(\'' + cid + '\'))">' + c.icon + ' ' + L(c.label) + '</div>' : '';
       }).join('') +
     '</div>';
   }
 
   content.innerHTML =
     '<button id="detail-close" onclick="closeDetail()">&times;</button>' +
-    '<h2>' + node.icon + ' ' + node.label + '</h2>' +
-    '<div class="detail-cat" style="color:' + (CAT_COLORS[node.category]||'#666') + '">' + (CAT_LABELS[node.category]||node.category) + '</div>' +
+    '<h2>' + node.icon + ' ' + L(node.label) + '</h2>' +
+    '<div class="detail-cat" style="color:' + (CAT_COLORS[node.category]||'#666') + '">' + (t('cat.'+node.category)||node.category) + '</div>' +
     narrativeHtml +
     '<div class="detail-body">' + detailsHtml + '</div>' +
     subTopicsHtml +
@@ -864,13 +1209,20 @@ function selectNode(id) {
     commentHtml;
 
   renderTree();
+  if (!silent) {
+    pushHash();
+  }
 }
 
 function closeDetail() {
+  var wasPanelOpen = selectedNodeId !== null;
   document.getElementById('detail-panel').classList.remove('open');
   document.getElementById('export-btn').style.display = '';
   selectedNodeId = null;
   renderTree();
+  if (wasPanelOpen) {
+    pushHash();
+  }
 }
 
 function goToNode(id) {
@@ -882,13 +1234,14 @@ function goToNode(id) {
     navigateTo(getPath(id));
   } else {
     // Navigate to parent, then select this node
-    const path = getPath(id);
-    const parentPath = path.slice(0, -1);
+    var path = getPath(id);
+    var parentPath = path.slice(0, -1);
     currentPath = parentPath.length > 0 ? parentPath : ['root'];
     renderBreadcrumbs();
     renderTree();
     renderGrid();
-    selectNode(id);
+    selectNode(id, true);
+    pushHash();
   }
 }
 
@@ -900,15 +1253,15 @@ searchInput.addEventListener('input', () => {
   const q = searchInput.value.toLowerCase().trim();
   if (q.length < 2) { searchResults.classList.remove('show'); return; }
   const results = Object.entries(topicData.nodes).filter(([id, n]) =>
-    n.label.toLowerCase().includes(q) ||
-    (n.summary && n.summary.toLowerCase().includes(q)) ||
-    (n.tags && n.tags.some(t => t.toLowerCase().includes(q)))
+    L(n.label).toLowerCase().includes(q) ||
+    (n.summary && L(n.summary).toLowerCase().includes(q)) ||
+    (n.tags && n.tags.some(tag => tag.toLowerCase().includes(q)))
   ).slice(0, 10);
   if (results.length === 0) { searchResults.classList.remove('show'); return; }
   searchResults.innerHTML = results.map(([id, r]) => {
-    const pathLabels = getPath(id).map(pid => { const n = getNode(pid); return n ? n.label : pid; }).join(' › ');
+    const pathLabels = getPath(id).map(pid => { const n = getNode(pid); return n ? L(n.label) : pid; }).join(' › ');
     return '<div class="sr-item" onclick="goToNode(\'' + id + '\')">' +
-      '<div class="sr-label">' + r.icon + ' ' + r.label + '</div>' +
+      '<div class="sr-label">' + r.icon + ' ' + L(r.label) + '</div>' +
       '<div class="sr-path">' + pathLabels + '</div>' +
     '</div>';
   }).join('');
@@ -983,16 +1336,71 @@ document.addEventListener('keydown', (e) => {
 
 // --- Boot ---
 (async function() {
+  // Language initialization
+  currentLang = getInitialLang();
+  localStorage.setItem('knowledgeMapLang', currentLang);
+  document.documentElement.lang = currentLang;
+
   await loadGitHubConfig();
   await loadTopicRegistry();
-  if (topicRegistry.length > 0) {
-    // Check URL hash for topic
-    const hash = location.hash.slice(1);
-    const startTopic = topicRegistry.find(t => t.id === hash) ? hash : topicRegistry[0].id;
-    document.getElementById('topic-select').value = startTopic;
+  if (topicRegistry.length === 0) return;
+
+  // Parse hash for deep link
+  var parsed = parseHash(location.hash);
+  var startTopic = (parsed && topicRegistry.find(function(t) { return t.id === parsed.topicId; }))
+    ? parsed.topicId
+    : topicRegistry[0].id;
+
+  document.getElementById('topic-select').value = startTopic;
+
+  // Load topic with hash suppression (boot should not push history)
+  _isRestoring = true;
+  try {
     await loadTopic(startTopic);
+  } finally {
+    _isRestoring = false;
   }
+
+  // Resolve deep path
+  if (parsed && parsed.segments.length > 0 && startTopic === parsed.topicId) {
+    var validPath = ['root'];
+    var invalid = false;
+
+    for (var i = 0; i < parsed.segments.length; i++) {
+      var segId = parsed.segments[i];
+      var segNode = getNode(segId);
+      if (segNode && getChildren(validPath[validPath.length - 1]).includes(segId)) {
+        validPath.push(segId);
+      } else {
+        invalid = true;
+        break;
+      }
+    }
+
+    if (invalid) {
+      _navigateCore(['root']);
+      showToast('Invalid link — showing topic root');
+    } else {
+      var lastId = validPath[validPath.length - 1];
+      if (hasChildren(lastId)) {
+        _navigateCore(validPath);
+      } else {
+        var parentPath = validPath.slice(0, -1);
+        currentPath = parentPath.length > 0 ? parentPath : ['root'];
+        renderBreadcrumbs();
+        renderTree();
+        renderGrid();
+        selectNode(lastId, true);
+      }
+    }
+  }
+
+  // Set initial state (replaceState, not pushState — no history entry for boot)
+  replaceHash();
+
   initNotificationBell();
+  initLangSwitcher();
+  updateURLLang();
 })();
 </script>
 </body>
