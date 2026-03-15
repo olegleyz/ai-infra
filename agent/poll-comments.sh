@@ -175,47 +175,23 @@ RULES:
       ;;
 
     feature)
+      # Delegate to multi-stage feature pipeline
+      echo "  Delegating to feature pipeline..."
       gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "enhancement" 2>/dev/null || true
-      AGENT_PROMPT="You are an autonomous agent maintaining the AI Data Centers knowledge map.
-A user requested a FEATURE (GitHub issue #${NUMBER}).
-
-Project directory: ${PROJECT_DIR}
-Main files:
-- ${PROJECT_DIR}/index.html (single-page app: ALL HTML + CSS + JS in one file)
-- ${PROJECT_DIR}/topics/*.json (data files loaded via fetch)
-- ${PROJECT_DIR}/comments.config.json (GitHub integration config)
-
-The request was made while viewing node '${NODE_ID}' in topic '${TOPIC_ID}'.
-
-User's feature request:
-${USER_COMMENT}
-
-YOUR TASK — do ALL of these steps:
-1. Read index.html to understand the current codebase
-2. Plan the implementation — keep it simple and minimal
-3. Implement the feature by editing index.html (add CSS, JS, HTML as needed)
-4. Verify: check for syntax errors, unmatched brackets, logic issues
-5. Commit: git add -A && git commit -m 'feat: [brief description] (from issue #${NUMBER})'
-6. Pull latest and push: git pull --rebase origin main && git push origin main
-7. Output ONLY a 2-3 sentence summary of what you implemented.
-
-RULES:
-- Keep changes minimal. Implement exactly what was requested, no more.
-- All code goes in index.html (inline CSS in <style>, inline JS in <script>).
-- Don't break existing features. Be careful with CSS specificity and JS globals.
-- If the feature requires data changes too, update topics/*.json as well.
-- Make sure it works on both desktop and mobile (the site uses @media max-width:768px)."
-      ALLOWED_TOOLS="Edit,Read,Bash(git *),Bash(jq *),Bash(cat *),Bash(node *),Write"
+      bash "$SCRIPT_DIR/process-feature.sh" --issue "$NUMBER" || {
+        echo "  ERROR: Feature pipeline failed for issue #$NUMBER."
+      }
+      # process-feature.sh handles its own issue comments and closing
+      continue
       ;;
   esac
 
-  # ── Step 3: Execute ───────────────────────────────────────────
+  # ── Step 3: Execute (content and bug only) ─────────────────────
   echo "  Running Claude agent ($CATEGORY)..."
   RESPONSE=$(cd "$PROJECT_DIR" && claude -p "$AGENT_PROMPT" --output-format text --allowedTools "$ALLOWED_TOOLS" 2>&1) || {
     echo "  ERROR: Claude agent failed on issue #$NUMBER."
     echo "  Output: $RESPONSE"
-    # Post failure notice but still close — don't leave issues dangling
-    gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "**Agent failed to process this issue.** The error has been logged. A developer will investigate.
+    gh issue comment "$NUMBER" --repo "$FULL_REPO" --body "**Agent failed to process this issue.** The error has been logged.
 
 \`\`\`
 ${RESPONSE:0:500}
@@ -240,13 +216,6 @@ The change has been pushed to main and will be live shortly."
 ${RESPONSE}
 
 The fix has been pushed to main and will be live shortly."
-      ;;
-    feature)
-      COMMENT_BODY="**Feature implemented** ✨✅
-
-${RESPONSE}
-
-The change has been pushed to main and will be live shortly."
       ;;
   esac
 

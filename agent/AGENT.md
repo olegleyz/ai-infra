@@ -1,59 +1,56 @@
-# Knowledge Map Comment Agent
+# Knowledge Map Agent System
 
 ## Overview
 
-This agent polls GitHub Issues for user comments submitted from the knowledge map. For each issue it:
-1. Invokes Claude with file editing tools to update the relevant node in `topics/*.json`
-2. Commits and pushes the change to main
-3. Posts a summary back to the issue and closes it
+Fully autonomous agent system that processes ALL open GitHub issues to completion. Nothing is left open — every issue is classified, implemented, verified, and closed.
 
-The knowledge map site auto-deploys from main via GitHub Pages, so changes go live within minutes.
+## Scripts
 
-## How to Run
+### `poll-comments.sh` — Main poller (runs every 5 min via launchd)
+Classifies issues into content/bug/feature, handles content and bugs directly, delegates features to the multi-stage pipeline.
+
+### `process-feature.sh` — Multi-stage feature pipeline
+7-stage pipeline for feature requests:
+
+| Stage | Agent Role | What it does |
+|-------|-----------|--------------|
+| 1 | Product Agent | Converts vague request → requirements, acceptance criteria, definition of done |
+| 2 | Architect Agent | Design options, pros/cons, recommended approach, implementation plan |
+| 3 | Review Agent | Peer review — catches problems before code is written |
+| 4 | Resolve Agent | Addresses review feedback, produces final plan |
+| 5 | Implement Agent | Writes code following the plan |
+| 6 | Test Agent | Syntax validation, mobile compat, regression check. Fix cycle if failures. |
+| 7 | Ship | Commit, push, close issue with full audit trail |
+
+Every stage posts its output to the GitHub issue as a comment, creating a full audit trail.
+
+## Usage
 
 ```bash
-# One-shot (process all open issues)
+# Automatic — launchd runs every 5 minutes
+# (already configured at ~/Library/LaunchAgents/com.aidc.poll-comments.plist)
+
+# Manual — process all open issues
 bash agent/poll-comments.sh
 
-# Cron (every 5 minutes)
-*/5 * * * * export PATH="..." && bash /path/to/agent/poll-comments.sh >> /tmp/poll-comments.log 2>&1
+# Process a specific feature request from a GitHub issue
+bash agent/process-feature.sh --issue 42
+
+# Create a new feature request and process it (from Claude Code or terminal)
+bash agent/process-feature.sh --request "Add dark/light theme toggle"
 ```
+
+## Comment Types
+
+| Type | Signal | Handler | Closes? |
+|------|--------|---------|---------|
+| content | "add info", "research", "tell me about" | Direct Claude call → edit JSON → push | Yes |
+| bug | "broken", "not working", "display issue" | Direct Claude call → edit code → push | Yes |
+| feature | "add button", "navigation", "UI change" | Multi-stage pipeline (7 stages) | Yes |
 
 ## Requirements
 
-- **gh** — GitHub CLI, authenticated (`gh auth login`)
+- **gh** — GitHub CLI, authenticated
 - **jq** — JSON processor
-- **claude** — Claude CLI (needs tool access: Edit, Read, Bash for git)
-
-## Issue Format
-
-**Title:** `[topicId:nodeId] First 60 chars of user comment...`
-
-**Body:**
-```
-**Topic:** AI Data Centers
-**Node:** Nuclear & SMRs (nuclear-smrs)
-**Path:** root › Value Chain Layers › ...
-
----
-
-User's full comment text here
-```
-
-**Label:** `user-comment`
-
-## What Claude Does Per Issue
-
-1. Reads `topics/{topicId}.json`
-2. Finds the node by ID
-3. Updates the node's `details` (and `summary` if needed) with enriched content addressing the user's comment
-4. Keeps JSON valid, doesn't touch other nodes
-5. Commits: `update {topicId}: enrich {nodeId} (from issue #{number})`
-6. Pushes to origin main
-
-## Edge Cases
-
-- **Unparseable title** → posts notice, closes issue
-- **Missing topic file** → posts notice, closes issue
-- **Claude fails** → logs error, skips to next issue
-- **No open issues** → exits cleanly
+- **claude** — Claude CLI
+- **node** — for JS syntax validation in test stage
