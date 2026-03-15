@@ -26,9 +26,15 @@ if [[ "$OWNER" == "OWNER" || "$REPO" == "REPO" ]]; then
   exit 1
 fi
 
-echo "Polling open issues in $FULL_REPO with label '$LABEL'..."
+echo "Polling open issues in $FULL_REPO..."
 
-ISSUES=$(gh issue list --repo "$FULL_REPO" --label "$LABEL" --state open --json number,title,body --limit 50)
+# Fetch labeled issues + all open issues matching [topic:node] pattern (label may be missing)
+LABELED=$(gh issue list --repo "$FULL_REPO" --label "$LABEL" --state open --json number,title,body --limit 50)
+ALL_OPEN=$(gh issue list --repo "$FULL_REPO" --state open --json number,title,body --limit 50)
+# Filter unlabeled ones that match our title pattern [xxx:yyy]
+PATTERN_MATCH=$(echo "$ALL_OPEN" | jq '[.[] | select(.title | test("^\\[.+:.+\\]"))]')
+# Merge and deduplicate by issue number
+ISSUES=$(echo "$LABELED $PATTERN_MATCH" | jq -s 'add | unique_by(.number)')
 COUNT=$(echo "$ISSUES" | jq 'length')
 
 if [[ "$COUNT" -eq 0 ]]; then
@@ -45,6 +51,9 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
 
   echo ""
   echo "--- Processing issue #$NUMBER: $TITLE ---"
+
+  # Ensure the issue has the label
+  gh issue edit "$NUMBER" --repo "$FULL_REPO" --add-label "$LABEL" 2>/dev/null || true
 
   # Parse [topicId:nodeId] from title
   if [[ "$TITLE" =~ ^\[([^:]+):([^\]]+)\] ]]; then
