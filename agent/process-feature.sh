@@ -490,8 +490,9 @@ YOUR TASK:
 1. Read index.html to understand current code structure
 2. Implement ALL changes from the plan, step by step
 3. After ALL changes are made, verify:
-   a. Run: node -e \"const fs=require('fs'); const h=fs.readFileSync('index.html','utf8'); if(h.includes('<script>')) { const js=h.split('<script>')[1].split('</script>')[0]; try { new Function(js); console.log('JS syntax OK'); } catch(e) { console.error('JS ERROR:',e.message); process.exit(1); } }\"
-   b. Check that opening/closing tags and braces are balanced
+   a. Validate any modified JSON files: jq . <file> > /dev/null
+   b. Read your changes back and verify opening/closing tags, braces, and parentheses are balanced
+   c. Verify no obvious JS syntax errors (missing semicolons after function expressions, unclosed strings, etc.)
 4. Do NOT commit yet — just make the code changes and verify they're correct
 5. Output a summary of exactly what you changed (files, line ranges, what was added/modified)
 
@@ -500,7 +501,7 @@ RULES:
 - All changes go in index.html unless the plan says otherwise.
 - Make sure mobile styles go inside the @media (max-width:768px) block.
 - Use the Edit tool for targeted changes, not full file rewrites.
-- Preserve existing indentation style." "Edit,Read,Bash(node *),Bash(jq *),Write" "300") || {
+- Preserve existing indentation style." "Edit,Read,Bash(jq *),Write" "300") || {
   post_stage "Implement" "**Stage 5: Implement Agent** ❌ Failed to implement.
 
 \`\`\`
@@ -530,7 +531,7 @@ ${IMPL_RESULT}
 YOUR TASK:
 1. Read index.html
 2. Run syntax validation:
-   node -e \"const fs=require('fs'); const h=fs.readFileSync('index.html','utf8'); const js=h.split('<script>')[1].split('</script>')[0]; try { new Function(js); console.log('JS: OK'); } catch(e) { console.error('JS ERROR:',e.message); process.exit(1); }\"
+   jq . topics/*.json > /dev/null (to validate JSON)
 3. Check each acceptance criterion — read the code and verify the implementation satisfies it
 4. Check mobile compatibility:
    - Are new styles properly inside @media (max-width:768px)?
@@ -563,7 +564,7 @@ OUTPUT FORMAT:
 [PASS / FAIL — if FAIL, list what needs fixing]
 
 ### Fix Instructions (if FAIL)
-[Specific instructions for what to fix]" "Read,Bash(node *),Bash(jq *),Bash(grep *)" "180") || {
+[Specific instructions for what to fix]" "Read,Bash(jq *),Bash(grep *)" "180") || {
   post_stage "Test" "**Stage 6: Test Agent** ❌ Failed to run tests."
   exit 1
 }
@@ -587,7 +588,7 @@ YOUR TASK:
 1. Read the relevant parts of index.html
 2. Fix every issue identified in the test results
 3. Re-run syntax validation: node -e \"const fs=require('fs'); const h=fs.readFileSync('index.html','utf8'); const js=h.split('<script>')[1].split('</script>')[0]; try { new Function(js); console.log('JS: OK'); } catch(e) { console.error('JS ERROR:',e.message); process.exit(1); }\"
-4. Output what you fixed" "Edit,Read,Bash(node *),Bash(jq *),Write" "300") || {
+4. Output what you fixed" "Edit,Read,Bash(jq *),Write" "300") || {
     post_stage "Fix" "**Stage 6b: Fix Agent** ❌ Failed to fix issues. Manual intervention needed.
 
 Test failures:

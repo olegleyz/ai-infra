@@ -188,7 +188,7 @@ RULES:
 - Preserve existing functionality — only fix the reported bug.
 - Test your logic mentally: will this fix work for the described scenario?
 - If the bug is in the data (JSON), fix the data. If it's in the UI code, fix the code."
-      ALLOWED_TOOLS="Edit,Read,Bash(git *),Bash(jq *),Bash(cat *),Bash(node *),Write"
+      ALLOWED_TOOLS="Edit,Read,Bash(git *),Bash(jq *),Bash(cat *),Write"
       ;;
 
     feature)
