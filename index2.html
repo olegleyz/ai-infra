@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Data Center Ecosystem Map</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1d27;
+  --bg3: #242736;
+  --border: #2e3144;
+  --text: #e1e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4a6bff;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+  --purple: #a78bfa;
+  --pink: #f472b6;
+  --cyan: #22d3ee;
+  --cat-value-chain: #6c8cff;
+  --cat-power: #fbbf24;
+  --cat-hardware: #34d399;
+  --cat-software: #a78bfa;
+  --cat-market: #fb923c;
+  --cat-opportunity: #22d3ee;
+  --cat-strategy: #f472b6;
+  --cat-player: #60a5fa;
+  --cat-risk: #f87171;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+#app { display: flex; height: 100vh; flex-direction: column; }
+
+/* Top bar */
+#topbar { display:flex; align-items:center; gap:12px; padding:10px 20px; background:var(--bg2); border-bottom:1px solid var(--border); flex-shrink:0; z-index:100; }
+#topbar h1 { font-size:16px; font-weight:600; white-space:nowrap; }
+#topbar h1 span { color:var(--accent); }
+#breadcrumbs { display:flex; gap:4px; align-items:center; font-size:13px; flex:1; overflow-x:auto; }
+#breadcrumbs .crumb { color:var(--text2); cursor:pointer; white-space:nowrap; padding:4px 8px; border-radius:4px; transition:all .15s; }
+#breadcrumbs .crumb:hover { background:var(--bg3); color:var(--text); }
+#breadcrumbs .crumb.active { color:var(--accent); font-weight:600; }
+#breadcrumbs .sep { color:var(--border); font-size:11px; }
+#search-box { position:relative; }
+#search-box input { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:6px 12px 6px 32px; border-radius:6px; font-size:13px; width:220px; outline:none; }
+#search-box input:focus { border-color:var(--accent); }
+#search-box svg { position:absolute; left:8px; top:50%; transform:translateY(-50%); }
+#search-results { position:absolute; top:100%; right:0; background:var(--bg2); border:1px solid var(--border); border-radius:8px; width:320px; max-height:400px; overflow-y:auto; display:none; z-index:200; margin-top:4px; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+#search-results.show { display:block; }
+#search-results .sr-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); }
+#search-results .sr-item:hover { background:var(--bg3); }
+#search-results .sr-item .sr-label { font-size:13px; font-weight:500; }
+#search-results .sr-item .sr-path { font-size:11px; color:var(--text2); margin-top:2px; }
+
+/* Main content area */
+#main { display:flex; flex:1; overflow:hidden; }
+
+/* Tree sidebar */
+#sidebar { width:280px; background:var(--bg2); border-right:1px solid var(--border); overflow-y:auto; flex-shrink:0; padding:12px 0; transition:width .2s; }
+#sidebar.collapsed { width:0; padding:0; overflow:hidden; }
+.tree-item { padding:5px 12px 5px calc(12px + var(--depth,0) * 16px); cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px; transition: background .1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tree-item:hover { background:var(--bg3); }
+.tree-item.active { background:var(--bg3); color:var(--accent); font-weight:600; }
+.tree-item .arrow { font-size:10px; width:14px; text-align:center; color:var(--text2); transition:transform .15s; flex-shrink:0; }
+.tree-item .arrow.open { transform:rotate(90deg); }
+.tree-item .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.tree-children { overflow:hidden; }
+.tree-children.collapsed { display:none; }
+
+/* Toggle sidebar button */
+#sidebar-toggle { position:absolute; left:280px; top:50%; transform:translateY(-50%); z-index:50; background:var(--bg2); border:1px solid var(--border); color:var(--text2); width:20px; height:40px; border-radius:0 6px 6px 0; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; transition:left .2s; }
+#sidebar-toggle:hover { color:var(--text); background:var(--bg3); }
+#sidebar-toggle.shifted { left:0; }
+
+/* Graph area */
+#graph-area { flex:1; position:relative; overflow:hidden; }
+#graph-container { position:absolute; inset:0; overflow:auto; padding:32px; }
+
+/* Level indicator */
+#level-header { padding:0 0 20px 0; }
+#level-header h2 { font-size:22px; font-weight:700; margin-bottom:4px; }
+#level-header .level-desc { font-size:14px; color:var(--text2); max-width:800px; line-height:1.5; }
+
+/* Node grid */
+#node-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px; max-width:1400px; }
+.node-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; cursor:pointer; transition:all .15s; position:relative; overflow:hidden; }
+.node-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 20px rgba(108,140,255,.15); }
+.node-card.expanded { border-color:var(--accent); }
+.node-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:12px 12px 0 0; }
+.node-card[data-cat="value-chain"]::before { background:var(--cat-value-chain); }
+.node-card[data-cat="power"]::before { background:var(--cat-power); }
+.node-card[data-cat="hardware"]::before { background:var(--cat-hardware); }
+.node-card[data-cat="software"]::before { background:var(--cat-software); }
+.node-card[data-cat="market"]::before { background:var(--cat-market); }
+.node-card[data-cat="opportunity"]::before { background:var(--cat-opportunity); }
+.node-card[data-cat="strategy"]::before { background:var(--cat-strategy); }
+.node-card[data-cat="player"]::before { background:var(--cat-player); }
+.node-card[data-cat="risk"]::before { background:var(--cat-risk); }
+.node-card[data-cat="construction"]::before { background:#f59e0b; }
+.node-card[data-cat="cooling"]::before { background:#06b6d4; }
+.node-card[data-cat="integration"]::before { background:#8b5cf6; }
+.node-card[data-cat="operations"]::before { background:#ec4899; }
+.node-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.node-icon { font-size:24px; flex-shrink:0; }
+.node-title { font-size:15px; font-weight:600; line-height:1.3; }
+.node-summary { font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:10px; }
+.node-meta { display:flex; gap:6px; flex-wrap:wrap; }
+.node-tag { font-size:10px; padding:2px 8px; border-radius:10px; background:var(--bg3); color:var(--text2); border:1px solid var(--border); }
+.node-tag.stock { background:rgba(34,211,153,.1); color:var(--green); border-color:rgba(34,211,153,.3); }
+.node-tag.bottleneck { background:rgba(248,113,113,.1); color:var(--red); border-color:rgba(248,113,113,.3); }
+.node-tag.opportunity { background:rgba(34,211,238,.1); color:var(--cyan); border-color:rgba(34,211,238,.3); }
+.node-tag.hot { background:rgba(251,191,36,.1); color:var(--yellow); border-color:rgba(251,191,36,.3); }
+.node-children-count { font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+.node-children-count svg { opacity:.5; }
+
+/* Detail panel - resizable */
+#detail-panel { width:0; background:var(--bg2); border-left:1px solid var(--border); overflow-y:auto; flex-shrink:0; position:relative; transition:width .2s; }
+#detail-panel.open { width:420px; transition:none; }
+#detail-panel.open .resize-handle { display:block; }
+.resize-handle { display:none; position:absolute; top:0; left:-4px; bottom:0; width:8px; cursor:col-resize; z-index:10; }
+.resize-handle:hover, .resize-handle.active { background:var(--accent); opacity:.3; }
+#detail-content { padding:20px; min-width:320px; }
+#detail-close { position:absolute; top:12px; right:12px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:18px; padding:4px 8px; border-radius:4px; }
+#detail-close:hover { background:var(--bg3); color:var(--text); }
+#detail-content h2 { font-size:18px; font-weight:700; margin-bottom:4px; padding-right:30px; }
+#detail-content .detail-cat { font-size:12px; color:var(--text2); margin-bottom:16px; text-transform:uppercase; letter-spacing:1px; }
+#detail-content .detail-body { font-size:13px; line-height:1.7; color:var(--text); }
+#detail-content .detail-body h3 { font-size:14px; font-weight:600; margin:16px 0 8px; color:var(--accent); }
+#detail-content .detail-body h4 { font-size:13px; font-weight:600; margin:12px 0 6px; color:var(--text); }
+#detail-content .detail-body p { margin-bottom:10px; }
+#detail-content .detail-body ul { margin:8px 0 12px 20px; }
+#detail-content .detail-body li { margin-bottom:4px; font-size:13px; }
+#detail-content .detail-body table { width:100%; border-collapse:collapse; margin:10px 0; font-size:12px; }
+#detail-content .detail-body th { text-align:left; padding:6px 8px; background:var(--bg3); border:1px solid var(--border); font-weight:600; color:var(--text2); }
+#detail-content .detail-body td { padding:6px 8px; border:1px solid var(--border); }
+#detail-content .detail-body .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+#detail-content .detail-body .stat-box { background:var(--bg3); border-radius:8px; padding:10px; text-align:center; }
+#detail-content .detail-body .stat-box .stat-val { font-size:18px; font-weight:700; color:var(--accent); }
+#detail-content .detail-body .stat-box .stat-label { font-size:11px; color:var(--text2); margin-top:2px; }
+#detail-content .detail-body .bar-chart { margin:10px 0; }
+#detail-content .detail-body .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; }
+#detail-content .detail-body .bar-label { width:120px; text-align:right; color:var(--text2); flex-shrink:0; }
+#detail-content .detail-body .bar-track { flex:1; height:20px; background:var(--bg); border-radius:4px; overflow:hidden; }
+#detail-content .detail-body .bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:6px; font-size:10px; font-weight:600; color:var(--bg); }
+#detail-content .detail-body .callout { background:var(--bg3); border-left:3px solid var(--accent); padding:10px 12px; border-radius:0 6px 6px 0; margin:12px 0; font-size:12px; }
+#detail-content .detail-body .callout.warning { border-left-color:var(--yellow); }
+#detail-content .detail-body .callout.danger { border-left-color:var(--red); }
+#detail-content .detail-body .callout.success { border-left-color:var(--green); }
+.detail-nav { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+.detail-nav h4 { font-size:12px; color:var(--text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.detail-nav .nav-link { display:block; padding:6px 10px; font-size:13px; color:var(--accent); cursor:pointer; border-radius:4px; margin-bottom:2px; }
+.detail-nav .nav-link:hover { background:var(--bg3); }
+
+/* Flow diagram (for value chain view) */
+.flow-container { display:flex; flex-direction:column; gap:8px; max-width:1000px; }
+.flow-row { display:flex; align-items:center; gap:0; }
+.flow-node { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; cursor:pointer; transition:all .15s; flex:1; max-width:300px; position:relative; }
+.flow-node:hover { border-color:var(--accent); transform:scale(1.02); }
+.flow-node .flow-label { font-size:14px; font-weight:600; }
+.flow-node .flow-sub { font-size:11px; color:var(--text2); margin-top:2px; }
+.flow-arrow { color:var(--border); font-size:20px; padding:0 4px; flex-shrink:0; text-align:center; }
+.flow-arrow.down { display:flex; justify-content:center; padding:2px 0; }
+
+/* Connection map for overview */
+.overview-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:20px; max-width:1200px; }
+.overview-card { background:var(--bg2); border:2px solid var(--border); border-radius:16px; padding:24px; cursor:pointer; transition:all .2s; }
+.overview-card:hover { border-color:var(--accent); transform:translateY(-4px); box-shadow:0 8px 32px rgba(108,140,255,.2); }
+.overview-card .ov-icon { font-size:36px; margin-bottom:12px; }
+.overview-card .ov-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+.overview-card .ov-desc { font-size:13px; color:var(--text2); line-height:1.5; margin-bottom:12px; }
+.overview-card .ov-stats { display:flex; gap:12px; }
+.overview-card .ov-stat { font-size:12px; }
+.overview-card .ov-stat strong { color:var(--accent); }
+
+/* Narrative */
+.narrative { font-size:14px; line-height:1.8; color:var(--text); margin-bottom:16px; padding:12px 16px; background:var(--bg); border-radius:8px; border-left:3px solid var(--accent); }
+.narrative strong { color:var(--accent); }
+
+/* Connected nodes (graph edges) */
+.connections { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+.connections h4 { font-size:12px; color:var(--text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
+.connections h4 svg { opacity:.5; }
+.conn-item { display:flex; align-items:flex-start; gap:8px; padding:6px 10px; border-radius:6px; cursor:pointer; margin-bottom:2px; font-size:12px; transition:background .1s; }
+.conn-item:hover { background:var(--bg3); }
+.conn-arrow { color:var(--text2); flex-shrink:0; margin-top:2px; }
+.conn-label { color:var(--text2); flex:1; }
+.conn-target { color:var(--accent); font-weight:500; white-space:nowrap; flex-shrink:0; }
+.conn-type { font-size:10px; padding:1px 6px; border-radius:8px; background:var(--bg3); color:var(--text2); flex-shrink:0; }
+
+/* Comments */
+.comment-section { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+.comment-section h4 { font-size:12px; color:var(--text2); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.comment-textarea { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:8px 10px; font-size:12px; font-family:inherit; resize:vertical; min-height:60px; outline:none; }
+.comment-textarea:focus { border-color:var(--accent); }
+.comment-textarea::placeholder { color:var(--text2); opacity:.6; }
+.comment-saved { font-size:11px; color:var(--green); margin-top:4px; opacity:0; transition:opacity .3s; }
+.comment-saved.show { opacity:1; }
+.has-comment { position:relative; }
+.has-comment::after { content:'💬'; position:absolute; top:8px; right:8px; font-size:12px; }
+
+/* Action buttons */
+.action-btns { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.action-btn { font-size:11px; padding:4px 10px; border-radius:4px; border:1px solid var(--border); background:var(--bg3); color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:4px; }
+.action-btn:hover { border-color:var(--accent); color:var(--text); }
+#export-btn { position:fixed; bottom:12px; right:12px; z-index:200; font-size:12px; padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+#export-btn:hover { border-color:var(--accent); color:var(--text); }
+
+/* Responsive */
+@media (max-width:768px) {
+  #sidebar { display:none; }
+  #detail-panel.open { width:100%; position:absolute; z-index:100; }
+  .overview-grid { grid-template-columns:1fr; }
+  #node-grid { grid-template-columns:1fr; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text2); }
+
+/* Legend */
+#legend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text2); }
+.legend-dot { width:10px; height:10px; border-radius:50%; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1><span>AI</span> DC Ecosystem Map</h1>
+    <div id="breadcrumbs"></div>
+    <div id="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ba1b5" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="search-input" placeholder="Search nodes..." autocomplete="off">
+      <div id="search-results"></div>
+    </div>
+  </div>
+  <div id="main">
+    <div id="sidebar"></div>
+    <div id="graph-area">
+      <div id="graph-container">
+        <div id="level-header"></div>
+        <div id="legend"></div>
+        <div id="node-grid"></div>
+      </div>
+    </div>
+    <div id="detail-panel">
+      <div class="resize-handle" id="resize-handle"></div>
+      <div id="detail-content" style="position:relative;">
+        <button id="detail-close" onclick="closeDetail()">&times;</button>
+      </div>
+    </div>
+  </div>
+  <button id="export-btn" onclick="exportComments()" title="Export all your comments for Claude">📋 Export Comments</button>
+</div>
+
+<script>
+// =====================================================
+// GRAPH CONNECTIONS - Links between any two nodes (not just parent-child)
+// These enable "Related Nodes" navigation in the detail panel
+// =====================================================
+const CONNECTIONS = [
+  // Grid crisis impacts
+  {from:"grid-queues", to:"power-equipment", label:"Drives extreme demand for transformers & switchgear", type:"causes"},
+  {from:"grid-queues", to:"dc-geography", label:"Pushes DCs to secondary markets with available grid", type:"causes"},
+  {from:"grid-queues", to:"dc-investment", label:"Sites with secured power command 2-4x price premiums", type:"causes"},
+  {from:"grid-queues", to:"nuclear-smrs", label:"Drives nuclear co-location to bypass queues", type:"causes"},
+  {from:"grid-queues", to:"modular-dc", label:"Modular DCs deploy faster once power finally arrives", type:"enables"},
+  {from:"grid-queues", to:"grid-workarounds", label:"Spawned behind-the-meter and co-location innovations", type:"causes"},
+  {from:"grid-queues", to:"gpu-accelerators", label:"Billions in GPUs sitting idle waiting for power", type:"blocks"},
+  {from:"grid-queues", to:"electrical-labor", label:"Interconnection work competes for same electricians", type:"competes"},
+  // Power ↔ Construction
+  {from:"power-equipment", to:"layer2-construction", label:"Equipment lead times gate construction schedules", type:"blocks"},
+  {from:"electrical-labor", to:"layer2-construction", label:"Electrician shortage delays DC construction", type:"blocks"},
+  {from:"electrical-labor", to:"opp-workforce", label:"Shortage creates workforce training business opportunity", type:"enables"},
+  // Hardware ↔ Cooling
+  {from:"gpu-accelerators", to:"layer3-cooling", label:"120kW/rack GPU racks mandate liquid cooling", type:"requires"},
+  {from:"layer3-cooling", to:"opp-cooling", label:"Liquid cooling mandate creates installer shortage → opportunity", type:"enables"},
+  // NVIDIA ecosystem
+  {from:"nvidia-ecosystem", to:"layer6-software", label:"NVIDIA provides free software stack to drive hardware sales", type:"enables"},
+  {from:"nvidia-ecosystem", to:"nebius", label:"$2B strategic investment + early Rubin GPU access", type:"invests"},
+  {from:"nvidia-ecosystem", to:"coreweave", label:"Major GPU allocation + strategic investment", type:"invests"},
+  {from:"nvidia-ecosystem", to:"crusoe", label:"Strategic investor", type:"invests"},
+  {from:"nvidia-ecosystem", to:"opp-enablement", label:"Actively wants partners who deploy their hardware globally", type:"enables"},
+  {from:"nvidia-ecosystem", to:"gpu-accelerators", label:"80-90% market share in AI accelerators", type:"dominates"},
+  {from:"nvidia-ecosystem", to:"networking", label:"Controls InfiniBand stack (ConnectX, Quantum switches)", type:"dominates"},
+  // Neoclouds ↔ Market
+  {from:"nebius", to:"coreweave", label:"Competitors in GPU-as-a-Service", type:"competes"},
+  {from:"nebius", to:"dc-geography", label:"European positioning for sovereign AI demand", type:"serves"},
+  {from:"coreweave", to:"hyperscalers", label:"Microsoft is 62% of revenue + OpenAI $11.9B deal", type:"depends-on"},
+  {from:"crusoe", to:"power-sources", label:"Innovative power model: stranded gas → AI compute", type:"innovates"},
+  // Crypto pivots
+  {from:"crypto-pivots", to:"power-sources", label:"Power contracts are the transferable asset, not mining hardware", type:"leverages"},
+  {from:"crypto-pivots", to:"hyperscalers", label:"$65B in contracts with tech companies by Oct 2025", type:"serves"},
+  // Opportunities ↔ Value chain
+  {from:"opp-enablement", to:"dc-development-process", label:"You manage the 9-phase process for regional clients", type:"serves"},
+  {from:"opp-enablement", to:"nvidia-ecosystem", label:"Deploy NVIDIA stack, get Partner Network benefits", type:"leverages"},
+  {from:"opp-enablement", to:"dc-geography", label:"Target underserved regions: Middle East, SE Asia, LatAm", type:"serves"},
+  {from:"opp-workforce", to:"electrical-labor", label:"Train workers for the 80K/yr electrician shortage", type:"addresses"},
+  {from:"opp-workforce", to:"layer3-cooling", label:"Train liquid cooling installers for mandatory AI cooling", type:"addresses"},
+  {from:"opp-workforce", to:"certifications", label:"6-8 week bootcamp → $35-55/hr deployable technician", type:"leverages"},
+  // Strategy phases
+  {from:"phase1", to:"opp-workforce", label:"Start here: specialty services company", type:"implements"},
+  {from:"phase2", to:"opp-enablement", label:"Evolve into turnkey AI DC enabler", type:"implements"},
+  {from:"phase3", to:"opp-neocloud", label:"Potentially evolve toward neocloud with track record", type:"evolves-to"},
+  // Market dynamics
+  {from:"dc-trends-problems", to:"grid-queues", label:"Grid crisis is root cause of geographic shifts", type:"driven-by"},
+  {from:"dc-trends-problems", to:"dc-investment", label:"$115B PE M&A in 2024 reshaping ownership", type:"driven-by"},
+  {from:"risks", to:"dc-trends-problems", label:"Demand cooling risk vs $660B committed hyperscaler capex", type:"tension"},
+  // Cross-layer
+  {from:"layer5-integration", to:"opp-commissioning", label:"Commissioning services opportunity (extreme shortage)", type:"enables"},
+  {from:"networking", to:"infiniband", label:"InfiniBand is 70-80% of large AI training networks", type:"contains"},
+  {from:"networking", to:"ultra-ethernet", label:"UEC challenging InfiniBand monopoly", type:"contains"},
+  {from:"servers-odms", to:"gpu-accelerators", label:"ODMs manufacture GPU servers for hyperscalers", type:"builds"},
+  {from:"storage", to:"gpu-accelerators", label:"Storage must keep GPUs fed — often the overlooked bottleneck", type:"supports"},
+];
+
+// =====================================================
+// DATA MODEL - Edit this to extend the knowledge map
+// =====================================================
+const DATA = {
+  id: "root",
+  label: "AI Data Center Ecosystem",
+  icon: "🌐",
+  category: "value-chain",
+  summary: "The complete ecosystem powering AI: from land and power to GPU clusters and cloud services",
+  details: `<h3>The AI Infrastructure Boom</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">$300-500B</div><div class="stat-label">Annual Industry Investment (2025)</div></div>
+  <div class="stat-box"><div class="stat-val">430K</div><div class="stat-label">Construction Worker Shortage</div></div>
+  <div class="stat-box"><div class="stat-val">80K/yr</div><div class="stat-label">Electrician Shortage</div></div>
+  <div class="stat-box"><div class="stat-val">25-35%</div><div class="stat-label">Market CAGR (2024-2030)</div></div>
+</div>
+<p>This is the largest infrastructure buildout since electrification. Every layer of the stack — from raw land to cloud APIs — presents opportunities and bottlenecks.</p>
+<div class="callout">Navigate by clicking any card to drill deeper. Click the detail icon to see full analysis. Use breadcrumbs to go back up.</div>`,
+  children: [
+    {
+      id: "value-chain",
+      label: "Value Chain Layers",
+      icon: "🔗",
+      category: "value-chain",
+      summary: "9 layers from land to cloud service — the full stack to deliver GPU compute",
+      details: `<h3>End-to-End Value Chain</h3>
+<p>To deliver a cloud GPU cluster to a consumer, ALL of these layers must be in place. Each layer has its own players, bottlenecks, and opportunities.</p>
+<div class="callout warning">Power & Energy (Layer 1) is the #1 bottleneck. Transformer shortage and grid interconnection queues of 3-7 years gate the entire industry.</div>
+<p>Total cost to build 1 MW of AI-ready capacity: <strong>$15-30M</strong> (shell only) or <strong>$30-80M</strong> (with GPUs).</p>`,
+      children: [
+        {
+          id: "layer0-land",
+          label: "Layer 0: Land & Permitting",
+          icon: "🏗️",
+          category: "value-chain",
+          summary: "~11,000 DCs worldwide. $275B construction market. 3-6 year development cycle. Power availability is the #1 site selection factor.",
+          tags: ["3-6 years", "$1-3M/MW", "hot"],
+          narrative: `Before any server gets plugged in, someone has to find land, get permission to build, secure enormous amounts of electricity, and construct a specialized building. This process takes <strong>3 to 6 years</strong> and involves dozens of players: real estate brokers, utilities, local governments, environmental consultants, construction firms, and more. The world has about <strong>11,000 data centers</strong> across 174 countries, but the market is consolidating fast — hyperscalers (AWS, Google, Microsoft, Meta) are growing from 44% to a projected 61% of all capacity by 2030, while enterprise-owned DCs are shrinking. The single biggest change in 2025-2026: site selection shifted from "where is demand?" to <strong>"where is power available?"</strong> — a fundamental reversal driven by grid constraints.`,
+          details: `<h3>Layer 0: Land, Permitting & the DC Market</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">~11,000</div><div class="stat-label">Data Centers Worldwide</div></div>
+  <div class="stat-box"><div class="stat-val">$275B</div><div class="stat-label">Construction Market (2025)</div></div>
+  <div class="stat-box"><div class="stat-val">122 GW</div><div class="stat-label">Global Installed Capacity</div></div>
+  <div class="stat-box"><div class="stat-val">$660-690B</div><div class="stat-label">Hyperscaler CapEx (2026)</div></div>
+</div>
+<p>This layer covers everything before a single server is installed: how the industry is structured, who builds and owns DCs, where they're located, and how a DC goes from idea to operational facility.</p>
+<div class="callout">2026 is called the "power-first era" — site selection has shifted from "where is demand?" to "where is power available?"</div>`,
+          children: [
+            {
+              id: "dc-market-structure",
+              label: "How Many DCs & Who Owns Them",
+              icon: "🏢",
+              category: "market",
+              summary: "~11,000 facilities, 174 countries. Hyperscalers: 44% → 61% by 2030. Enterprise declining from 56% → 22%.",
+              details: `<h3>Global DC Market Structure</h3>
+<h4>How Many Data Centers Exist?</h4>
+<table><tr><th>Definition</th><th>Count</th><th>What's Included</th></tr>
+<tr><td>All tracked facilities</td><td>~11,000</td><td>Commercial + tracked across 174 countries</td></tr>
+<tr><td>Commercial (strict)</td><td>~8,821</td><td>Meeting commercial thresholds</td></tr>
+<tr><td>Colo + Hyperscale</td><td>~6,111</td><td>5,544 colo sites + 567 hyperscale</td></tr>
+<tr><td>Hyperscale only</td><td>~1,189</td><td>Top ~20 cloud/internet companies</td></tr></table>
+<div class="callout">Excludes millions of enterprise server rooms. "Data center" = purpose-built facility with dedicated power, cooling, security. Capacity measured in MW (megawatts), not sqft.</div>
+<h4>Who Owns What — The Great Shift</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">Hyperscale (2026)</div><div class="bar-track"><div class="bar-fill" style="width:48%;background:var(--accent)">48% → 61% by 2030</div></div></div>
+  <div class="bar-row"><div class="bar-label">Colocation</div><div class="bar-track"><div class="bar-fill" style="width:22%;background:var(--green)">22%</div></div></div>
+  <div class="bar-row"><div class="bar-label">Enterprise (declining)</div><div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--orange)">30% → 22% by 2030</div></div></div>
+</div>
+<p><strong>The single biggest structural trend:</strong> Enterprise on-prem was 56% of capacity six years ago. Now 30-34%. Headed to 22% by 2030. Everything is migrating to hyperscale and colo.</p>
+<h4>Ownership Categories</h4>
+<table><tr><th>Owner Type</th><th>Examples</th><th>Trend</th></tr>
+<tr><td>Hyperscalers (build own)</td><td>AWS, Azure, Google, Meta, Oracle</td><td>Dominant & growing. 75% of capex is AI-related</td></tr>
+<tr><td>Colo REITs (public)</td><td>Equinix, Digital Realty</td><td>Stable, increasingly serving hyperscalers</td></tr>
+<tr><td>Colo (PE-owned)</td><td>QTS (Blackstone), CyrusOne (KKR), Switch (DigitalBridge)</td><td>PE consolidation wave</td></tr>
+<tr><td>Enterprise (legacy)</td><td>Banks, telcos, hospitals</td><td>Declining — migrating to cloud</td></tr>
+<tr><td>Sovereign Wealth Funds</td><td>MGX, Mubadala, KIA, QIA</td><td>$66B invested in AI/digital in 2025 alone</td></tr>
+<tr><td>Crypto pivots</td><td>Applied Digital, IREN, Hut 8</td><td>$65B in contracts announced by Oct 2025</td></tr></table>`,
+              children: []
+            },
+            {
+              id: "dc-geography",
+              label: "Geographic Distribution",
+              icon: "🗺️",
+              category: "market",
+              summary: "US has 48% of facilities. NoVA: 5.9 GW (#1). Beijing #2. Power constraints driving geographic diversification.",
+              narrative: `Almost half of all data centers are in North America, with <strong>Northern Virginia alone holding 5.9 GW</strong> — more than any other market on Earth. But the map is changing fast. Primary markets like NoVA, London, and Dublin are hitting power walls (Dublin's DCs already consume 21% of Ireland's electricity). This is <strong>pushing</strong> development to secondary markets: Texas (fast grid), Nordics (cheap hydro), Middle East (massive sovereign budgets), and Southeast Asia (government mandates). The key insight: geography is now driven by <strong>where power is available</strong>, not where customers are.`,
+              details: `<h3>Where Are Data Centers?</h3>
+<div style="background:var(--bg);border-radius:8px;padding:16px;margin-bottom:16px">
+<h4 style="margin-bottom:12px;color:var(--text2)">Global DC Heat Map (by capacity)</h4>
+<div style="font-family:monospace;font-size:11px;line-height:1.4;color:var(--text2);white-space:pre">
+                          🟢 Available grid    🟡 Tightening    🔴 Constrained/Moratorium
+
+    N.America (48%)                     Europe (28%)                APAC (16%)
+    ┌──────────────┐                ┌──────────────────┐      ┌──────────────┐
+    │              │                │  🟢 Nordics      │      │ 🔴 Singapore │
+    │  🔴 NoVA     │                │  🔴 Ireland      │      │ 🟡 Malaysia  │
+    │   5.9 GW #1  │                │  🔴 Netherlands  │      │ 🟡 Japan     │
+    │  🟢 Texas    │                │  🔴 UK (50GW!)   │      │ 🟢 India     │
+    │  🟡 Phoenix  │                │  🟡 Frankfurt    │      │ 🟢 Australia │
+    │  🟡 Ohio     │                │  🟢 France       │      └──────────────┘
+    │  🟢 Atlanta  │                │  🟢 Spain        │
+    └──────────────┘                └──────────────────┘      Middle East
+                                                              ┌──────────────┐
+    🟠 Beijing #2 (>2GW)                                      │ 🟢 Saudi     │
+    🟡 Shanghai                                               │ 🟢 UAE       │
+                                                              │ (heat=cost)  │
+                                                              └──────────────┘
+</div></div>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">48%</div><div class="stat-label">North America (of facilities)</div></div>
+  <div class="stat-box"><div class="stat-val">28%</div><div class="stat-label">Europe</div></div>
+  <div class="stat-box"><div class="stat-val">16%</div><div class="stat-label">Asia-Pacific</div></div>
+  <div class="stat-box"><div class="stat-val">72%</div><div class="stat-label">Under Construction in US</div></div>
+</div>
+<h4>Top Markets by Capacity</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">N. Virginia</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--accent)">~5.9 GW — world's largest</div></div></div>
+  <div class="bar-row"><div class="bar-label">Beijing</div><div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--red)">~2+ GW</div></div></div>
+  <div class="bar-row"><div class="bar-label">Dallas/FW</div><div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--orange)">~1.5-2 GW</div></div></div>
+  <div class="bar-row"><div class="bar-label">London</div><div class="bar-track"><div class="bar-fill" style="width:20%;background:var(--green)">~1+ GW</div></div></div>
+  <div class="bar-row"><div class="bar-label">Dublin</div><div class="bar-track"><div class="bar-fill" style="width:18%;background:var(--yellow)">~1+ GW (moratorium)</div></div></div>
+  <div class="bar-row"><div class="bar-label">Frankfurt</div><div class="bar-track"><div class="bar-fill" style="width:16%;background:var(--purple)">approaching 1 GW</div></div></div>
+</div>
+<h4>Emerging Markets (2025-2026 surge)</h4>
+<ul>
+<li><strong>US secondary</strong>: Phoenix, Atlanta, Columbus, Salt Lake City, Nashville</li>
+<li><strong>Middle East</strong>: Saudi, UAE — SWFs invested $66B in AI/digital in 2025</li>
+<li><strong>SE Asia</strong>: Malaysia (2GW+ pipeline), Indonesia, India (fastest-growing APAC)</li>
+<li><strong>Europe</strong>: Nordics (cheap hydro), Spain, Poland, France (4+ GW upcoming)</li>
+</ul>
+<div class="callout warning">Primary markets (NoVA, London, Dublin, Amsterdam) are hitting power walls. The industry is being PUSHED to new geographies by power constraints, not just pulled by demand.</div>`,
+              children: []
+            },
+            {
+              id: "dc-development-process",
+              label: "How a DC Gets Built",
+              icon: "📋",
+              category: "value-chain",
+              summary: "Normally 3-6 years. xAI built Colossus in 122 DAYS (100K GPUs). Modular can do 3-6 months. The speed debate is reshaping the industry.",
+              narrative: `The standard answer is 3-6 years, but that's being shattered. <strong>Elon Musk's xAI built "Colossus" in 122 days</strong> — going from an empty factory to 100,000 GPUs online. Then doubled to 200,000 GPUs in 92 more days. The industry said this would take 18-24 months minimum. How? By repurposing an existing building, leasing mobile generators and cooling, stripping out "unnecessary" process, and — controversially — <strong>skipping environmental permits entirely</strong> (leading to lawsuits from the NAACP over unpermitted pollution in a disadvantaged community). The real question isn't "how long does it take?" but "what tradeoffs are you willing to make?" Modular/prefab offers 80% of the speed benefit without the legal and community risk. Every month of delay on a 60MW DC costs <strong>$14.2 million</strong> in lost revenue — that's the pressure driving the speed debate.`,
+              details: `<h3>DC Development Lifecycle</h3>
+<h4>The 9 Phases</h4>
+<table><tr><th>#</th><th>Phase</th><th>Timeline</th><th>Who's Involved</th></tr>
+<tr><td>1</td><td>Strategy & Feasibility</td><td>3-6 months</td><td>Developer, financial advisors, market consultants</td></tr>
+<tr><td>2</td><td>Site Selection</td><td>6-12 months</td><td>Brokers, utility reps, environmental consultants</td></tr>
+<tr><td>3</td><td>Land Acquisition & Entitlements</td><td>3-9 months</td><td>RE attorneys, land use attorneys, local gov't</td></tr>
+<tr><td>4</td><td>Permitting</td><td>6-18 months</td><td>Architects, engineers, fire marshal, utilities</td></tr>
+<tr><td>5</td><td>Design & Engineering</td><td>9-18 months</td><td>DC architects, MEP engineers, sustainability consultants</td></tr>
+<tr><td>6</td><td>Procurement</td><td>6-12 months</td><td>Equipment manufacturers (transformers: 24-36mo lead!)</td></tr>
+<tr><td>7</td><td>Construction</td><td>12-36 months</td><td>GCs, MEP subs, electrical contractors</td></tr>
+<tr><td>8</td><td>Commissioning</td><td>2-6 months</td><td>Independent commissioning agents, vendors</td></tr>
+<tr><td>9</td><td>Operations Handover</td><td>Ongoing</td><td>Ops team, customer IT teams</td></tr></table>
+<div class="callout">Total: 3-6 years. Modular/prefab can compress to 18-24 months. The critical path is almost always POWER — median interconnection wait is now 5 years (was 2 years in 2008).</div>
+<h4>How Power Gets Secured</h4>
+<ul>
+<li><strong>Utility Service Agreement</strong>: Negotiate large-load deal with local utility. Often requires developer to fund grid upgrades ($50-500M+).</li>
+<li><strong>Physical PPA</strong>: Long-term (10-20yr) contract with a power producer. Direct or "sleeved" through utility.</li>
+<li><strong>Virtual PPA (VPPA)</strong>: Financial hedge — no physical power delivery. Developer buys from grid; VPPA provides price certainty. Most common for renewables.</li>
+<li><strong>Behind-the-meter</strong>: On-site generation (gas, fuel cells, solar). Bypasses grid queue entirely. 56 GW planned in US (30% of DC capacity).</li>
+<li><strong>Nuclear co-location</strong>: Build next to existing nuclear plant. Power already available. Bypasses queue.</li>
+</ul>
+<h4>What Can Go Wrong</h4>
+<ul>
+<li>Power procurement delays (years)</li>
+<li>Community opposition ($64B blocked/delayed in 2 years)</li>
+<li>Zoning denials at public hearings</li>
+<li>Environmental discoveries (wetlands, contamination)</li>
+<li>Utility revokes will-serve letter (capacity changed)</li>
+<li>Transformer lead times (24-36 months)</li>
+</ul>
+<h4>Site Selection Criteria (Ranked — click to explore each)</h4>
+<div style="margin:16px 0">
+<div onclick="goToNode('layer1-power')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:100%;height:36px;background:var(--red);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:600;color:var(--bg);justify-content:space-between">⚡ 1. POWER — availability, cost, grid queue time<span style="font-size:10px;opacity:.7">→ explore</span></div></div>
+<div onclick="goToNode('networking')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:88%;height:30px;background:var(--orange);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:600;color:var(--bg);justify-content:space-between">🌐 2. FIBER — carrier diversity, latency, dark fiber<span style="font-size:10px;opacity:.7">→</span></div></div>
+<div onclick="goToNode('dc-trends-problems')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:75%;height:28px;background:var(--yellow);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:600;color:var(--bg);justify-content:space-between">💰 3. TAX INCENTIVES — VA $1.6B/yr debate<span style="font-size:10px;opacity:.7">→</span></div></div>
+<div onclick="goToNode('dc-trends-problems')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:65%;height:26px;background:var(--green);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:500;color:var(--bg)">📋 4. PERMITTING — states competing to streamline</div></div>
+<div onclick="goToNode('layer3-cooling')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:55%;height:24px;background:var(--cyan);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:500;color:var(--bg)">🌡️ 5. CLIMATE — cold = 20-40% cooling savings</div></div>
+<div onclick="goToNode('dc-trends-problems')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:48%;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:500;color:var(--bg)">💧 6. WATER — 40%+ of US DCs in scarce areas</div></div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:40%;height:22px;background:var(--purple);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:10px;color:var(--bg)">🌪️ 7. DISASTER RISK</div></div>
+<div onclick="goToNode('labor')" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:35%;height:22px;background:var(--pink);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:10px;color:var(--bg);justify-content:space-between">👷 8. LABOR — 439K shortage<span style="font-size:9px;opacity:.7">→</span></div></div>
+<div onclick="goToNode('dc-geography')" style="cursor:pointer;display:flex;align-items:center;gap:8px"><div style="width:30%;height:22px;background:var(--text2);border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:10px;color:var(--bg)">🏛️ 9. POLITICS</div></div>
+</div>
+<div class="callout warning">In 2020, power was important but #3-4 on most lists. By 2026 it's the dominant factor by a wide margin — there's no point evaluating anything else if you can't get power within 3-5 years.</div>`,
+              children: [
+                {
+                  id: "xai-colossus",
+                  label: "xAI Colossus: 122-Day Build",
+                  icon: "🚀",
+                  category: "player",
+                  summary: "Empty factory to 100K GPUs in 122 days. Doubled to 200K in 92 more days. Lawsuits over unpermitted pollution.",
+                  tags: ["hot"],
+                  narrative: `In June 2024, xAI began converting an abandoned Electrolux factory in South Memphis into the world's largest AI supercomputer. By July 22 — just <strong>122 days later</strong> — 100,000 NVIDIA H100 GPUs were online. The final batch was deployed in 19 days. By December, 200,000 GPUs. The industry said this would take 18-24 months. Musk did it by repurposing an existing building, leasing mobile generators and cooling, using Supermicro pre-integrated liquid-cooled racks, and — controversially — <strong>installing 35 gas turbines without Clean Air Act permits</strong>. The NAACP threatened to sue. A study estimated $30-44M/yr in health damages. The pattern repeated at Colossus 2 in Mississippi.`,
+                  details: `<h3>xAI Colossus — The Speed Record</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">122 days</div><div class="stat-label">Empty Factory to 100K GPUs</div></div>
+  <div class="stat-box"><div class="stat-val">19 days</div><div class="stat-label">Final 100K GPU Deploy</div></div>
+  <div class="stat-box"><div class="stat-val">200K GPUs</div><div class="stat-label">By Dec 2024</div></div>
+  <div class="stat-box"><div class="stat-val">2 GW target</div><div class="stat-label">1M GPUs planned</div></div>
+</div>
+<h4>How They Did It</h4>
+<table><tr><th>Traditional</th><th>xAI</th><th>Saved</th></tr>
+<tr><td>New building</td><td>Repurposed factory</td><td>12-18mo</td></tr>
+<tr><td>Procure transformers (18-36mo)</td><td>Leased mobile generators</td><td>12-24mo</td></tr>
+<tr><td>Design HVAC plant</td><td>Supermicro liquid-cooled racks + CDUs</td><td>6-12mo</td></tr>
+<tr><td>Environmental permits</td><td>Skipped (later sued)</td><td>6-18mo</td></tr>
+<tr><td>InfiniBand fabric</td><td>NVIDIA Spectrum-X Ethernet</td><td>2-4mo</td></tr></table>
+<div class="callout danger">$14.2M/month cost of delay on a 60MW DC. That financial pressure drives corner-cutting. But the xAI model depends on regulatory shortcuts that triggered lawsuits and community harm — it works once, not as policy.</div>`,
+                  children: []
+                },
+                {
+                  id: "speed-build-debate",
+                  label: "The Speed Debate",
+                  icon: "⏱️",
+                  category: "value-chain",
+                  summary: "Modular: $32.6B to $102.5B by 2033. Trump EO fast-tracks permits. Crusoe Spark deploys in 3 months. But safety tradeoffs real.",
+                  narrative: `The industry is debating how fast you can build without cutting dangerous corners. Modular/prefab — where 85% is factory-built while the site is prepared — is the consensus answer. Crusoe's "Spark" deploys in 3 months. The modular market is growing from $32.6B to $102.5B by 2033. Trump's July 2025 executive order fast-tracks federal permitting for AI DCs. But no executive order can accelerate physics: transformer manufacturing takes 18-36 months, grid interconnection requires physical infrastructure upgrades. The likely endgame: modular captures 80% of xAI's speed benefit within legitimate frameworks.`,
+                  details: `<h3>The DC Construction Speed Debate</h3>
+<h4>Speed Approaches Compared</h4>
+<table><tr><th>Approach</th><th>Timeline</th><th>Risk</th><th>Example</th></tr>
+<tr><td>Traditional</td><td>3-6 years</td><td>Low</td><td>Hyperscaler campuses</td></tr>
+<tr><td style="color:var(--green)"><strong>Modular/prefab</strong></td><td style="color:var(--green)"><strong>6-18 months</strong></td><td>Low-Med</td><td>Crusoe Spark (3mo), Compass</td></tr>
+<tr><td>Repurpose building</td><td>3-6 months</td><td>Medium</td><td>xAI Colossus</td></tr>
+<tr><td style="color:var(--red)">Skip permits</td><td style="color:var(--red)">~4 months</td><td style="color:var(--red)">HIGH</td><td>xAI (lawsuits)</td></tr></table>
+<h4>Where Time Goes</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">Site Selection</div><div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--green)">6-12mo</div></div></div>
+  <div class="bar-row"><div class="bar-label">Permitting</div><div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--orange)">6-18mo</div></div></div>
+  <div class="bar-row"><div class="bar-label">Design</div><div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--yellow)">9-18mo</div></div></div>
+  <div class="bar-row"><div class="bar-label">Construction</div><div class="bar-track"><div class="bar-fill" style="width:50%;background:var(--red)">12-36mo</div></div></div>
+  <div class="bar-row"><div class="bar-label">Commissioning</div><div class="bar-track"><div class="bar-fill" style="width:10%;background:var(--purple)">3-6mo</div></div></div>
+</div>
+<div class="callout success"><strong>Modular is the answer</strong>: $32.6B market growing to $102.5B by 2033 (12.9% CAGR). Factory-built with 20-50 workers beats 4,000+ workers on site. This is where speed + quality + compliance balance.</div>`,
+                  children: []
+                }
+              ]
+            },
+            {
+              id: "dc-company-types",
+              label: "Types of Companies Involved",
+              icon: "🏭",
+              category: "player",
+              summary: "Developers, operators, investors, REITs, PE funds, SWFs, utilities, construction firms, real estate pivots — all converging.",
+              details: `<h3>Who Participates in DC Development?</h3>
+<h4>Core Industry Players</h4>
+<table><tr><th>Type</th><th>Role</th><th>Economics</th></tr>
+<tr><td>DC Developers</td><td>Acquire land, secure power, build shells</td><td>50-65% dev margin in Tier 1 US markets</td></tr>
+<tr><td>DC Operators</td><td>Run day-to-day facility operations</td><td>Recurring colo lease revenue</td></tr>
+<tr><td>DC Investors/Owners</td><td>Provide capital, own assets long-term</td><td>Rental income + asset appreciation</td></tr>
+<tr><td>Hyperscalers</td><td>Develop, own AND operate their own</td><td>Internal cost center</td></tr></table>
+<h4>New Entrants (2023-2026 wave)</h4>
+<table><tr><th>Type</th><th>Why They're Entering</th><th>Scale</th></tr>
+<tr><td>Traditional RE developers</td><td>Higher returns than industrial/office</td><td>95% of institutional investors increasing DC allocation</td></tr>
+<tr><td>Infrastructure PE funds</td><td>Infrastructure-like returns + growth</td><td>$108B+ invested in DCs in 2024</td></tr>
+<tr><td>Sovereign Wealth Funds</td><td>Long-duration assets + sovereign AI</td><td>$66B in AI/digital in 2025</td></tr>
+<tr><td>Utilities & energy cos</td><td>Capture demand-side value of their power</td><td>Alphabet acquired Intersect for $4.75B</td></tr>
+<tr><td>Crypto miners</td><td>AI hosting: $1-4M/MW vs volatile mining</td><td>$65B in tech contracts by Oct 2025</td></tr>
+<tr><td>Telcos</td><td>Monetize existing RE, fiber, edge sites</td><td>Natural fit for edge DC</td></tr>
+<tr><td>Financial institutions</td><td>Strong risk-adjusted returns, new ABS</td><td>DC-backed ABS emerging as asset class</td></tr></table>
+<div class="callout success">The convergence of all these player types is unprecedented. Five years ago DC was a niche within commercial RE. Now it's the single largest category of infrastructure fund launches.</div>`,
+              children: []
+            },
+            {
+              id: "dc-investment",
+              label: "Investment & Financing",
+              icon: "💰",
+              category: "market",
+              summary: "25-40% IRR in development. DC REITs: 77% 5yr return. PE invested $108B in 2024. JVs, REITs, project finance, ABS.",
+              tags: ["hot"],
+              details: `<h3>DC Investment Landscape</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">$237B</div><div class="stat-label">Global DC Investment (2025)</div></div>
+  <div class="stat-box"><div class="stat-val">$108B+</div><div class="stat-label">PE Invested in DCs (2024)</div></div>
+  <div class="stat-box"><div class="stat-val">77%</div><div class="stat-label">DC REIT 5yr Return</div></div>
+  <div class="stat-box"><div class="stat-val">$1T+</div><div class="stat-label">Projected N.America 2025-2030</div></div>
+</div>
+<h4>Expected Returns by Strategy</h4>
+<table><tr><th>Strategy</th><th>Target IRR</th><th>Risk</th></tr>
+<tr><td>Ground-up hyperscale development</td><td style="color:var(--green)">25-40%</td><td>Higher (construction + lease-up)</td></tr>
+<tr><td>Build-to-suit (pre-leased)</td><td style="color:var(--green)">12-19%</td><td>Moderate (construction only)</td></tr>
+<tr><td>Stabilized core infrastructure</td><td>Low-teens</td><td>Lower (operating assets)</td></tr></table>
+<h4>Financing Structures</h4>
+<ul>
+<li><strong>Corporate balance sheet</strong>: Hyperscalers fund from cash flow + corporate debt</li>
+<li><strong>REIT equity/debt</strong>: Public markets. Must distribute 90%+ income. DC REITs: 21.3% FFO growth Q1 2025</li>
+<li><strong>Joint ventures</strong>: Operator + financial partner. E.g., BlackRock-Microsoft $30B AI infra fund (joined by xAI + NVIDIA)</li>
+<li><strong>Project finance</strong>: Non-recourse debt against long-term lease contracts</li>
+<li><strong>Asset-backed securities</strong>: NEW — securitizing DC lease cash flows. Emerging market</li>
+<li><strong>Sale-leaseback</strong>: Build, sell to investor, lease back. Recycles capital</li></ul>
+<div class="callout">Only 8% of institutional investors expect to have less than 5% DC exposure in 5 years (down from 24% today). Everyone is increasing allocation.</div>`,
+              children: []
+            },
+            {
+              id: "dc-trends-problems",
+              label: "Trends, Problems & Shifts",
+              icon: "📈",
+              category: "risk",
+              summary: "$64B in projects blocked/delayed. 142 activist groups in 24 states. Virginia $1.6B/yr tax debate. But problems → new business models.",
+              details: `<h3>Key Trends & Problems (2023-2026)</h3>
+<h4>Problems That Became Enablers</h4>
+<table><tr><th>Problem</th><th>What It Enabled</th></tr>
+<tr><td>Power scarcity in primary markets</td><td>56 GW of behind-the-meter generation planned (30% of US DC capacity). 90% announced in 2025 alone. Nuclear restarts. Secondary market boom.</td></tr>
+<tr><td>Land scarcity in NoVA/London</td><td>Geographic diversification. Brownfield redevelopment. Modular DC adoption.</td></tr>
+<tr><td>Construction worker shortage</td><td>Prefab DC market: $4.4B→$14.7B by 2034 (13.2% CAGR). Slashes timelines by 50%. Modular = 85% off-site.</td></tr>
+<tr><td>Community opposition</td><td>Heat reuse programs. Smaller footprint/higher density. Community benefit agreements. Tax negotiations.</td></tr>
+<tr><td>Supply chain delays (transformers)</td><td>On-site generation. Battery storage co-location. Power-plant adjacency model.</td></tr></table>
+<h4>New Problems (Emerging Risks)</h4>
+<ul>
+<li><strong>Community opposition</strong>: <span style="color:var(--red)">$64B in projects blocked ($18B) or delayed ($46B). 142 activist groups in 24 states.</span> Warrenton, VA voted out entire council over Amazon DC.</li>
+<li><strong>Grid reliability</strong>: NERC "Level 2 Alert" (Sep 2025). PJM projected "just enough power" starting summer 2026.</li>
+<li><strong>Water politics</strong>: 40%+ of US DCs in high water-scarcity areas. States introducing water-use disclosure laws.</li>
+<li><strong>Tax incentive backlash</strong>: Virginia exemption saves industry $1.6-1.9B/yr. Senate voted to end it; House voted to keep. Budget deadlocked (Mar 2026). 300+ DC bills filed in 30+ states in first 6 weeks of 2026.</li>
+<li><strong>Moratoriums spreading</strong>: Ireland, Netherlands, Singapore + now NY, SD, OK, parts of VA. Bills multiplying.</li>
+<li><strong>Insurance crisis</strong>: Mega-campuses need $1-3B builder's risk. $20B+ insured value vs ~$5B market capacity. 80% of top DC hubs at high heat risk by 2080.</li>
+</ul>
+<h4>Structural Market Shifts</h4>
+<ul>
+<li><strong>Enterprise → Cloud migration</strong>: Enterprise share: 56% → 34% → 22% by 2030</li>
+<li><strong>PE consolidation wave</strong>: $115B across 95 deals in 2024 alone (2x prior 2 yrs combined). Blackstone/QTS, KKR/CyrusOne, DigitalBridge/Switch→SoftBank ($4B), MGX/Aligned ($40B)</li>
+<li><strong>Sovereign AI mandates</strong>: Countries building national compute. Q3 2025 = "the quarter AI went sovereign"</li>
+<li><strong>"Power-first" site selection</strong>: 2026 defined by power availability driving all decisions</li>
+<li><strong>AI density revolution</strong>: 120kW/rack (vs 5-10kW) changes everything about how DCs are designed</li>
+</ul>
+<div class="callout warning">The biggest meta-risk: these DCs take 3-6 years to build, but AI demand forecasts change quarterly. $660B in committed hyperscaler capex is based on demand projections that could shift.</div>`,
+              children: []
+            }
+          ]
+        },
+        {
+          id: "layer1-power",
+          label: "Layer 1: Power & Energy",
+          icon: "⚡",
+          category: "power",
+          summary: "THE #1 bottleneck. Transformers (2-4yr lead time), grid queues, 80K electrician shortage",
+          tags: ["bottleneck", "#1 constraint", "18-36 months"],
+          details: `<h3>Power & Energy — The Binding Constraint</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">#1</div><div class="stat-label">Industry Bottleneck</div></div>
+  <div class="stat-box"><div class="stat-val">2-4 yr</div><div class="stat-label">Transformer Lead Time</div></div>
+  <div class="stat-box"><div class="stat-val">3-7 yr</div><div class="stat-label">Grid Queue Wait</div></div>
+  <div class="stat-box"><div class="stat-val">40-60%</div><div class="stat-label">Of DC OpEx</div></div>
+</div>
+<div class="callout danger">US power generation barely grew in 20 years (~1,200 GW). Adding 30-70 GW of DC load = powering multiple cities from scratch.</div>
+<h4>The Power Density Shift</h4>
+<table><tr><th>Generation</th><th>Per Rack</th><th>Cooling</th></tr>
+<tr><td>Traditional DC</td><td>5-10 kW</td><td>Air</td></tr>
+<tr><td>NVIDIA H100</td><td>40-70 kW</td><td>Liquid transition</td></tr>
+<tr><td>NVIDIA GB200 NVL72</td><td>~120 kW</td><td>Liquid required</td></tr>
+<tr><td>Next-gen (Rubin)</td><td>150+ kW</td><td>Full liquid</td></tr></table>`,
+          children: [
+            {
+              id: "power-sources",
+              label: "Power Sources",
+              icon: "🔌",
+              category: "power",
+              summary: "Grid, nuclear, gas, renewables, SMRs — what hyperscalers are doing",
+              details: `<h3>Power Sources for AI DCs</h3>
+<table><tr><th>Source</th><th>Timeline</th><th>$/kWh</th><th>Carbon</th></tr>
+<tr><td>Grid (existing)</td><td>Immediate</td><td>$0.03-0.12</td><td>Varies</td></tr>
+<tr><td>Natural gas (new)</td><td>2-4 years</td><td>$0.04-0.07</td><td>Emitting</td></tr>
+<tr><td>Solar + storage PPA</td><td>2-4 years</td><td>$0.03-0.06</td><td>Clean</td></tr>
+<tr><td>Nuclear (existing)</td><td>Immediate</td><td>$0.03-0.05</td><td>Clean</td></tr>
+<tr><td>SMRs (new)</td><td>2030+</td><td>$0.05-0.10</td><td>Clean</td></tr></table>
+<h4>Hyperscaler Power Deals</h4>
+<ul>
+<li><strong>Microsoft</strong>: $B+ PPA with Constellation to restart Three Mile Island (835MW)</li>
+<li><strong>Amazon</strong>: Bought Talen Energy campus near Susquehanna nuclear ($650M)</li>
+<li><strong>Google</strong>: PPA with Kairos Power (SMR ~2030) + Fervo geothermal (400MW)</li>
+<li><strong>Meta</strong>: RFP for 1-4 GW of nuclear power</li>
+<li><strong>Oracle</strong>: Plans 1 GW+ DC powered by 3 SMRs</li>
+</ul>
+<div class="callout warning">Natural gas is the uncomfortable near-term reality. Despite clean energy commitments, it's the only source deployable at GW scale in 2-3 years.</div>`,
+              tags: ["hot"],
+              children: [
+                { id: "nuclear-smrs", label: "Nuclear & SMRs", icon: "☢️", category: "power", summary: "NuScale, X-energy (Amazon), Kairos (Google), TerraPower (Gates). Realistic: 2030+", tags: ["stock:SMR", "stock:CEG", "stock:VST"], details: `<h3>Nuclear Renaissance for AI</h3><h4>Existing Nuclear Revival</h4><ul><li><strong>Constellation Energy (CEG)</strong>: Stock 3x'd in 2024. Three Mile Island restart for Microsoft.</li><li><strong>Vistra (VST)</strong>: Nuclear + gas generation fleet. Major beneficiary.</li></ul><h4>SMR Developers</h4><table><tr><th>Company</th><th>Design</th><th>Backer</th><th>Timeline</th></tr><tr><td>NuScale (SMR)</td><td>77MW/module</td><td>Public</td><td>~2030</td></tr><tr><td>X-energy</td><td>Xe-100, 80MW</td><td>Amazon</td><td>~2030</td></tr><tr><td>Kairos Power</td><td>Hermes reactor</td><td>Google</td><td>~2030</td></tr><tr><td>TerraPower</td><td>Natrium</td><td>Bill Gates</td><td>~2030</td></tr><tr><td>Oklo</td><td>Aurora</td><td>Sam Altman</td><td>~2030+</td></tr></table><div class="callout">SMR market: $150-300B cumulative through 2040. But first commercial units unlikely before 2030-2032.</div>`, children: [] },
+                { id: "grid-queues", label: "Grid Interconnection Crisis", icon: "🚧", category: "power", summary: "Global crisis. US: 2,600 GW in queues, 4-5yr wait. Ireland moratorium. UK: 10yr+ queue. Reshaping entire AI DC geography.", tags: ["bottleneck", "hot"],
+                narrative: `Think of grid interconnection like plugging a small city into the power grid. A 100MW data center draws as much electricity as 80,000 homes. You can't just flip a switch — the grid operator needs to study whether the wires, transformers, and power plants can handle your load without causing blackouts for everyone else. This study process takes <strong>5 years on average</strong> in the US (it was 2 years in 2008). In the UK, the queue of data centers waiting for power connections is <strong>larger than the entire country's peak electricity demand</strong>. This is why power has replaced land as the #1 constraint — you can have the money, the land, the GPUs, and the building, but without grid approval, none of it works.`,
+                details: `<h3>Grid Interconnection — The Global Crisis</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">~2,300 GW</div><div class="stat-label">In US Queues</div></div>
+  <div class="stat-box"><div class="stat-val">5 yr</div><div class="stat-label">US Median Wait (was 2yr in 2008)</div></div>
+  <div class="stat-box"><div class="stat-val">50 GW</div><div class="stat-label">UK DC Queue (vs 45 GW national peak!)</div></div>
+  <div class="stat-box"><div class="stat-val">+77%</div><div class="stat-label">Transformer Prices Since 2019</div></div>
+</div>
+<h4>What Is Grid Interconnection?</h4>
+<p>To power a DC, you must physically connect it to the electricity grid. This means:</p>
+<ul>
+<li>Building or upgrading a <strong>substation</strong> (steps down high-voltage transmission to usable medium voltage)</li>
+<li>Running <strong>transmission lines</strong> from the grid to your site</li>
+<li>Getting the grid operator to study whether the grid can handle your load without destabilizing neighbors</li>
+<li>Parties involved: <strong>DC developer</strong> (applicant), <strong>utility</strong> (builds local infrastructure), <strong>grid operator/ISO</strong> (manages grid reliability), <strong>regulator</strong> (approves)</li>
+</ul>
+<p>You cannot just "plug in." A 100MW DC draws as much power as a small city. The grid must be able to deliver that reliably.</p>`,
+                children: [
+                  { id: "grid-us", label: "US Grid Crisis", icon: "🇺🇸", category: "power", summary: "PJM paused (2022). ERCOT: 12-24mo. 2,600 GW queued vs 1,250 GW installed. FERC Order 2023 reform.",
+                  tags: ["bottleneck"],
+                  details: `<h3>US Grid Interconnection Crisis</h3>
+<h4>How US Queues Work</h4>
+<p>The US grid is managed by regional ISOs (Independent System Operators). To connect a large load, you apply to the ISO, which conducts studies (feasibility, system impact, facilities). Each study takes months-years. If grid upgrades are needed, the developer often pays.</p>
+<h4>By Region</h4>
+<table><tr><th>ISO/RTO</th><th>Coverage</th><th>Queue Status</th><th>DC Impact</th></tr>
+<tr><td style="color:var(--red)"><strong>PJM</strong></td><td>VA, MD, PA, OH, NJ — DC CAPITAL</td><td>4,000 MW new DC load vs 2,100 MW substation capacity. $100B projected consumer cost increase through 2033.</td><td>NoVA expansion FROZEN. Dec 2025 FERC ruling created new co-location rules.</td></tr>
+<tr><td style="color:var(--green)"><strong>ERCOT</strong></td><td>Texas</td><td>233 GW of large load requests (70%+ from DCs). Phased interconnection model = faster.</td><td>Fastest in US — driving massive DC migration to Texas</td></tr>
+<tr><td style="color:var(--orange)"><strong>MISO</strong></td><td>Midwest, South</td><td>2-4 years. Large backlog.</td><td>Some DC growth in Indiana, Mississippi</td></tr>
+<tr><td style="color:var(--orange)"><strong>SPP</strong></td><td>Central US</td><td>2-3 years</td><td>Oklahoma, Kansas seeing interest</td></tr>
+<tr><td style="color:var(--yellow)"><strong>CAISO</strong></td><td>California</td><td>2-3 years but expensive power</td><td>Limited DC growth, high costs</td></tr>
+<tr><td style="color:var(--orange)"><strong>NYISO</strong></td><td>New York</td><td>3-5 years</td><td>Some growth upstate near hydro</td></tr></table>
+<h4>Why It Got So Bad</h4>
+<ul>
+<li>Queue designed for a few large power plants/year. Now flooded with thousands of solar, wind, battery, AND data center applications simultaneously</li>
+<li>Grid barely grew in 20 years. Adding 30-70 GW of DC load is unprecedented</li>
+<li>"First-come, first-served" = speculative applications clog the queue</li>
+</ul>
+<h4>FERC Order 2023 Reform</h4>
+<ul>
+<li>Shifts to "first-ready, first-served" — applicants must prove financial readiness</li>
+<li>Cluster-based study process (batches of applications studied together)</li>
+<li>Higher deposits to deter speculative applications</li>
+<li>Still being implemented. Full effects not felt until 2027+</li>
+</ul>`, children: [] },
+                  { id: "grid-europe", label: "Europe Grid Situation", icon: "🇪🇺", category: "power", summary: "Ireland: moratorium. Netherlands: restricted. UK: 10yr+ queues. Nordics: available but tightening. France: 4GW+ planned.",
+                  tags: ["bottleneck"],
+                  details: `<h3>Europe: Grid by Country</h3>
+<table><tr><th>Country</th><th>Status</th><th>Details</th></tr>
+<tr><td style="color:var(--yellow)"><strong>Ireland</strong></td><td>Moratorium LIFTED (Dec 2025)</td><td>Lifted with strict conditions: must have dispatchable generation matching import capacity, 80% renewable sourcing within 6 years. DCs consume ~21% of Ireland's electricity. First European DC microgrid launched Dublin early 2026.</td></tr>
+<tr><td style="color:var(--red)"><strong>Netherlands</strong></td><td>Banned until 2035</td><td>Amsterdam banned new DCs >70MW or >10 hectares until 2035. Demand pushed to other European locations.</td></tr>
+<tr><td style="color:var(--red)"><strong>UK</strong></td><td>50 GW queued</td><td>50 GW of DC demand queued vs 45 GW national peak demand. Government declared DCs "nationally significant infrastructure" but grid is physically the constraint.</td></tr>
+<tr><td style="color:var(--green)"><strong>Nordics (Sweden, Finland, Norway)</strong></td><td>Best in Europe</td><td>Cheap hydro/wind. Cold climate. Grid capacity still available (but tightening in Stockholm region). Finland and Norway actively courting DCs.</td></tr>
+<tr><td style="color:var(--yellow)"><strong>Germany</strong></td><td>Moderate</td><td>Frankfurt is largest continental market. Grid available but energy costs high. Renewable expansion helping.</td></tr>
+<tr><td style="color:var(--green)"><strong>France</strong></td><td>Expanding</td><td>4+ GW of DC capacity planned. Nuclear baseload (70%+ of electricity). Government supportive.</td></tr>
+<tr><td style="color:var(--yellow)"><strong>Spain</strong></td><td>Emerging</td><td>Growing interest. Cheaper land/labor. Improving grid. Some latency concerns to major markets.</td></tr></table>
+<div class="callout">EU Energy Efficiency Directive requires DCs to report energy use, PUE, water consumption. Efficiency requirements tightening. Future DCs must meet higher standards.</div>`, children: [] },
+                  { id: "grid-apac", label: "Asia-Pacific Grid", icon: "🌏", category: "power", summary: "Singapore: moratorium (lifting cautiously). Malaysia: 2GW+ pipeline but grid questions. Japan: constrained. India: fastest-growing.",
+                  details: `<h3>Asia-Pacific Grid Status</h3>
+<table><tr><th>Market</th><th>Status</th><th>Details</th></tr>
+<tr><td style="color:var(--yellow)"><strong>Singapore</strong></td><td>Cautious reopening</td><td>Moratorium lifted 2024 with strict green requirements. Only ~60MW approved in first batch. Must meet tough PUE and sustainability standards.</td></tr>
+<tr><td style="color:var(--orange)"><strong>Malaysia (Johor)</strong></td><td>Booming but risky</td><td>DC power could reach 30% of national electricity by 2030. Cheap land near Singapore. Grid infrastructure may not keep pace.</td></tr>
+<tr><td style="color:var(--yellow)"><strong>Japan</strong></td><td>Constrained</td><td>Tokyo/Osaka: limited grid capacity. Premium pricing. Renewable push helping. New builds moving to regional areas.</td></tr>
+<tr><td style="color:var(--green)"><strong>India</strong></td><td>Fastest-growing APAC</td><td>Grid expanding rapidly. Mumbai, Chennai, Hyderabad. Relatively available power but reliability concerns. Government supportive.</td></tr>
+<tr><td style="color:var(--yellow)"><strong>Australia</strong></td><td>Moderate</td><td>Sydney/Melbourne have grid capacity. AirTrunk (Blackstone) dominant. Renewable transition ongoing.</td></tr>
+<tr><td style="color:var(--orange)"><strong>Indonesia</strong></td><td>Emerging</td><td>Growing demand. Grid infrastructure developing. Jakarta area primary market.</td></tr></table>`, children: [] },
+                  { id: "grid-mena", label: "Middle East & Africa", icon: "🌍", category: "power", summary: "Gulf states: grids ready (gas-powered) but extreme heat = cooling cost. Africa: early stage, grid is THE challenge.",
+                  details: `<h3>Middle East & Africa</h3>
+<h4>Gulf States</h4>
+<ul>
+<li><strong>Saudi Arabia</strong>: Grid well-developed (gas/oil powered). Actively building GW-scale DC campuses. NEOM, Riyadh. PIF funding. Grid is NOT the constraint here — it's cooling and talent.</li>
+<li><strong>UAE</strong>: Similar — reliable grid, cheap gas power. G42/Mubadala investments. Dubai, Abu Dhabi.</li>
+<li><strong>Challenge</strong>: Extreme heat means 40-50% more cooling energy. PUE of 1.5-1.8 vs 1.1-1.3 in Nordics.</li>
+</ul>
+<h4>Africa</h4>
+<ul>
+<li><strong>South Africa</strong>: Johannesburg/Cape Town. Grid UNRELIABLE — rolling blackouts (load shedding). DCs need extensive on-site generation.</li>
+<li><strong>Kenya, Nigeria</strong>: Very early stage. Grid is THE constraint. Any DC needs significant captive power.</li>
+<li><strong>North Africa (Morocco, Egypt)</strong>: Emerging. Proximity to Europe. Grid improving.</li>
+</ul>
+<div class="callout">Gulf states are uniquely positioned: abundant cheap power (gas), massive capital (SWFs), strategic location between Europe and Asia. Grid is NOT the bottleneck — heat and talent are.</div>`, children: [] },
+                  { id: "grid-impact", label: "Impact on AI DC Ecosystem", icon: "🔗", category: "risk", summary: "Grid crisis ripples through EVERY layer: construction timelines, GPU deployment, land values, geographic distribution, power equipment demand.",
+                  tags: ["hot"],
+                  details: `<h3>How Grid Crisis Impacts Everything Else</h3>
+<p>The grid interconnection crisis isn't isolated — it's the root cause of cascading effects across the entire value chain:</p>
+<table><tr><th>Graph Node Affected</th><th>How Grid Crisis Impacts It</th></tr>
+<tr><td><strong>Construction Timelines</strong></td><td>Building is complete but can't energize → facility sits empty for months/years. Power delivery is now the critical path, not construction.</td></tr>
+<tr><td><strong>GPU Deployment</strong></td><td>$2-3M GPU racks sitting in warehouses waiting for power. NVIDIA ships but customers can't deploy. Billions in idle hardware.</td></tr>
+<tr><td><strong>Land Values</strong></td><td>"Powered land" commands 2-4x price premiums (documented 18-month appreciation). Land without power is nearly worthless for DC.</td></tr>
+<tr><td><strong>Transformer Demand</strong></td><td>30% supply shortfall. Prices up 77-95% since 2019. Lead times 128+ weeks. Queue backlog = deferred orders all hitting at once.</td></tr>
+<tr><td><strong>Geographic Distribution</strong></td><td>THE primary driver of geographic diversification. DCs moving to Texas (ERCOT fast), Nordics (available grid), secondary US markets — because NoVA/London grids are full.</td></tr>
+<tr><td><strong>Nuclear Renaissance</strong></td><td>Co-locating with nuclear BYPASSES the queue. Meta seeking 6.6 GW nuclear. Amazon 5 GW SMR program. Microsoft/TMI, Amazon/Susquehanna.</td></tr>
+<tr><td><strong>Behind-the-Meter Generation</strong></td><td>On-site gas turbines, fuel cells, batteries let developers skip the queue entirely. Growing rapidly despite higher cost.</td></tr>
+<tr><td><strong>Modular DC Adoption</strong></td><td>If you can't get power for 5 years, modular = deploy faster once power arrives. Also works for incremental capacity at constrained sites.</td></tr>
+<tr><td><strong>AI Model Training</strong></td><td>Geographic constraint on where large clusters can be deployed limits options for training runs that need 10,000+ GPUs in one location.</td></tr>
+<tr><td><strong>Investment Returns</strong></td><td>Sites with secured power = instant premium. Development margins higher for "powered" projects. Risk premium on unpowered land.</td></tr></table>
+<div class="callout danger">The grid crisis is the single most underappreciated constraint in AI. Everyone talks about GPU supply. But you can buy GPUs with enough money. You CANNOT buy grid capacity at any price in many markets.</div>`, children: [] },
+                  { id: "grid-workarounds", label: "Workarounds & Innovations", icon: "💡", category: "opportunity", summary: "Behind-the-meter generation, nuclear co-location, DC-owned substations, microgrids, demand response — and who benefits.",
+                  tags: ["opportunity"],
+                  details: `<h3>Grid Crisis Workarounds</h3>
+<h4>Technical Solutions</h4>
+<table><tr><th>Workaround</th><th>How It Works</th><th>Who's Doing It</th></tr>
+<tr><td><strong>Behind-the-meter generation</strong></td><td>Build gas turbines/fuel cells ON-SITE. Never touch the grid queue.</td><td>Crusoe (gas), Bloom Energy (fuel cells), many hyperscalers quietly</td></tr>
+<tr><td><strong>Nuclear co-location</strong></td><td>Build DC next to existing nuclear plant. Power already there.</td><td>Microsoft/TMI, Amazon/Susquehanna, Talen Energy</td></tr>
+<tr><td><strong>DC-owned substations</strong></td><td>Developer builds own substation, utility connects transmission</td><td>Large hyperscaler campuses</td></tr>
+<tr><td><strong>Battery storage (BESS)</strong></td><td>Store grid power during off-peak, use during peak. Smooth load profile.</td><td>Tesla Megapack, Fluence at DC sites</td></tr>
+<tr><td><strong>Microgrids</strong></td><td>Island-capable power systems: solar + storage + gas backup</td><td>Edge DCs, remote locations</td></tr>
+<tr><td><strong>Demand response</strong></td><td>DCs offer to reduce load during grid stress in exchange for faster connection</td><td>Emerging — utilities interested</td></tr></table>
+<h4>Who Benefits from This Crisis?</h4>
+<ul>
+<li><strong>Power generation companies</strong> — existing plants near DC demand = gold mines</li>
+<li><strong>Transformer manufacturers</strong> — extreme demand, pricing power</li>
+<li><strong>On-site generation providers</strong> — gas turbines, fuel cells booming</li>
+<li><strong>Grid consultants / interconnection specialists</strong> — navigating queues is a valued skill</li>
+<li><strong>Owners of "powered land"</strong> — sites with existing grid capacity are scarce + premium-priced</li>
+<li><strong>Secondary market developers</strong> — where grid IS available, they capture demand overflow</li>
+<li><strong>ERCOT-area developers</strong> — Texas's fast queue = competitive advantage</li>
+</ul>
+<div class="callout success">OPPORTUNITY: Interconnection consulting, grid-readiness assessment, behind-the-meter integration. Anyone who can help a developer get power faster has a high-value, in-demand skill.</div>`, children: [] }
+                ]
+                }
+              ]
+            },
+            {
+              id: "power-equipment",
+              label: "Power Equipment",
+              icon: "🔧",
+              category: "power",
+              summary: "Transformers (CRISIS), switchgear, generators, UPS — all with extended lead times",
+              tags: ["bottleneck"],
+              details: `<h3>Power Equipment Supply Chain</h3>
+<table><tr><th>Equipment</th><th>Lead Time</th><th>Key Makers</th></tr>
+<tr><td>Large transformers (100MVA+)</td><td style="color:var(--red)">24-36 months</td><td>Hitachi Energy, Siemens, GE Vernova</td></tr>
+<tr><td>MV transformers</td><td style="color:var(--orange)">12-24 months</td><td>Eaton, Schneider, ABB</td></tr>
+<tr><td>MV switchgear</td><td style="color:var(--orange)">26-52 weeks</td><td>Eaton, Schneider, Siemens</td></tr>
+<tr><td>UPS systems</td><td style="color:var(--yellow)">20-40 weeks</td><td>Vertiv, Eaton, Schneider</td></tr>
+<tr><td>Diesel generators</td><td style="color:var(--yellow)">26-52 weeks</td><td>Caterpillar, Cummins, Rolls-Royce</td></tr></table>
+<div class="callout danger">Transformer shortage is arguably the #1 bottleneck. Global production: ~2-3K large units/yr. Demand surging from DCs + grid modernization + EVs + renewables simultaneously.</div>
+<h4>Investable Equities</h4>
+<ul><li><strong>Eaton (ETN)</strong>: Switchgear, UPS, PDUs — pure DC electrical play</li>
+<li><strong>Vertiv (VRT)</strong>: UPS, thermal, power distribution</li>
+<li><strong>GE Vernova (GEV)</strong>: Transformers, gas turbines, grid</li>
+<li><strong>Schneider Electric (SBGSY)</strong>: Broad electrical infrastructure</li></ul>`,
+              tags: ["stock:ETN", "stock:VRT", "stock:GEV", "stock:SBGSY"],
+              children: []
+            },
+            {
+              id: "electrical-labor",
+              label: "Electrical Labor Shortage",
+              icon: "👷",
+              category: "power",
+              summary: "80-100K additional electricians needed/yr. Wages up 20-50%. 4-5 yr apprenticeship pipeline.",
+              tags: ["bottleneck", "opportunity"],
+              details: `<h3>The Electrical Labor Crisis</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">80-100K</div><div class="stat-label">Additional Electricians Needed/yr</div></div>
+  <div class="stat-box"><div class="stat-val">+20-50%</div><div class="stat-label">Wage Inflation (2022-2025)</div></div>
+</div>
+<h4>Wage Trends</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">HV Specialist</div><div class="bar-track"><div class="bar-fill" style="width:85%;background:var(--red)">$75-120/hr</div></div></div>
+  <div class="bar-row"><div class="bar-label">Commissioning Eng</div><div class="bar-track"><div class="bar-fill" style="width:80%;background:var(--orange)">$100-160/hr</div></div></div>
+  <div class="bar-row"><div class="bar-label">Journeyman (DC)</div><div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--yellow)">$45-75/hr</div></div></div>
+  <div class="bar-row"><div class="bar-label">Controls Tech</div><div class="bar-track"><div class="bar-fill" style="width:55%;background:var(--green)">$55-85/hr</div></div></div>
+</div>
+<h4>Key Contractors</h4>
+<ul><li><strong>Rosendin Electric</strong>: $3B+ revenue, largest DC electrical contractor</li>
+<li><strong>Cupertino Electric</strong>: $3-4B, major West Coast</li>
+<li><strong>IES</strong>: $2.5B+, strong in TX/VA</li>
+<li><strong>Quanta Services (PWR)</strong>: $20B+, transmission + DC</li></ul>
+<div class="callout success">OPPORTUNITY: Training programs for DC-specific electrical work. 6-8 week bootcamp can produce deployable liquid cooling/cabling technicians at $35-55/hr.</div>`,
+              tags: ["stock:PWR"],
+              children: []
+            }
+          ]
+        },
+        {
+          id: "layer2-construction",
+          label: "Layer 2: Construction",
+          icon: "🏗️",
+          category: "construction",
+          summary: "Traditional (18-24mo) vs modular (6-12mo). 430K worker shortage. $5-8M/MW for shell.",
+          tags: ["opportunity", "430K shortage"],
+          details: `<h3>DC Construction</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">$50-100B/yr</div><div class="stat-label">US DC Construction Spending</div></div>
+  <div class="stat-box"><div class="stat-val">430K</div><div class="stat-label">Worker Shortage</div></div>
+</div>
+<table><tr><th>Approach</th><th>Timeline</th><th>Cost/MW</th></tr>
+<tr><td>Traditional stick-built</td><td>18-30 months</td><td>$10-15M</td></tr>
+<tr><td>Modular/prefab</td><td>12-18 months</td><td>$8-12M</td></tr>
+<tr><td>Pod/containerized</td><td>6-12 months</td><td>$6-10M</td></tr></table>
+<h4>Key GCs</h4>
+<ul><li>Holder Construction, DPR Construction, Hensel Phelps, Turner, Mortenson</li>
+<li>Modular: Compass Datacenters, Schneider Electric prefab pods</li></ul>
+<div class="callout success">Modular is the game-changer for new entrants. 85% built off-site. Order prefab modules, focus on site prep + power + customers.</div>`,
+          children: [
+            { id: "modular-dc", label: "Modular/Prefab DCs", icon: "📦", category: "construction", summary: "85% built off-site. 6-12 months. 20-30% cheaper. Compass + Schneider leading.", tags: ["opportunity"], details: `<h3>Modular Data Centers</h3><p>Compass Datacenters + Schneider Electric partnership: prefabricated EcoStruxure Pods with integrated cooling, power, containment.</p><h4>Advantages for New Entrants</h4><ul><li>Lower barrier: order modules, focus on site + power + customers</li><li>Faster time to revenue: 6-9 months vs 18-24</li><li>Incremental scaling: 1-5 MW modules</li><li>Quality: 60-70% factory-built = better QC</li><li>Capital: single 1MW pod = $3-8M</li></ul><h4>Key Vendors</h4><ul><li>Schneider Electric, Vertiv, Rittal, BladeRoom Group</li></ul>`, children: [] }
+          ]
+        },
+        {
+          id: "layer3-cooling",
+          label: "Layer 3: Cooling",
+          icon: "❄️",
+          category: "cooling",
+          summary: "Liquid cooling now MANDATORY for AI racks. $15-22B market growing 25-35% CAGR.",
+          tags: ["opportunity", "hot"],
+          details: `<h3>Cooling — The Technology Shift</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">$15-22B</div><div class="stat-label">Market (2025)</div></div>
+  <div class="stat-box"><div class="stat-val">25-35%</div><div class="stat-label">CAGR</div></div>
+</div>
+<p>Traditional air cooling works to ~15-20 kW/rack. AI racks at 40-120+ kW make it physically impossible. NVIDIA GB200 NVL72 <em>mandates</em> liquid cooling.</p>
+<table><tr><th>Technology</th><th>Max kW/rack</th><th>PUE</th><th>Status</th></tr>
+<tr><td>Air (CRAH/CRAC)</td><td>15-20</td><td>1.3-1.5</td><td>Legacy</td></tr>
+<tr><td>Rear-door HX</td><td>30-50</td><td>1.2-1.3</td><td>Bridge</td></tr>
+<tr><td>Direct Liquid (DLC)</td><td>60-100+</td><td>1.05-1.2</td><td>Current AI standard</td></tr>
+<tr><td>Immersion</td><td>100+</td><td>1.02-1.1</td><td>Emerging</td></tr></table>
+<h4>Key Vendors</h4>
+<ul><li><strong>CoolIT Systems</strong>: Dominant in DLC, $1B+ orders</li>
+<li><strong>Vertiv (VRT)</strong>: CDUs, thermal management</li>
+<li><strong>GRC</strong>: Immersion cooling pioneer</li>
+<li><strong>JetCool</strong>: Jet impingement (acquired by Flex)</li></ul>
+<div class="callout success">SWEET SPOT OPPORTUNITY: Liquid cooling installation specialist. Every new AI DC needs it, very few firms can install it. 6-8 week training for piping techs.</div>`,
+          children: []
+        },
+        {
+          id: "layer4-hardware",
+          label: "Layer 4: Hardware & Networking",
+          icon: "🖥️",
+          category: "hardware",
+          summary: "GPUs, networking (InfiniBand/Ethernet), storage, cabling. NVIDIA dominates 80-90%.",
+          tags: ["$220-300B market"],
+          details: `<h3>IT Hardware Layer</h3><p>This is where the magic happens — and where NVIDIA has 80-90% market share in AI accelerators.</p>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">80-90%</div><div class="stat-label">NVIDIA AI Accelerator Share</div></div>
+  <div class="stat-box"><div class="stat-val">$50-80M</div><div class="stat-label">Per 1,024 GPU Cluster</div></div>
+</div>`,
+          children: [
+            {
+              id: "gpu-accelerators",
+              label: "GPU / Accelerators",
+              icon: "🎮",
+              category: "hardware",
+              summary: "NVIDIA (H100→B200→GB200→Rubin), AMD MI300X, Google TPU, AWS Trainium",
+              tags: ["stock:NVDA", "stock:AMD"],
+              details: `<h3>AI Accelerator Landscape</h3>
+<table><tr><th>Product</th><th>HBM</th><th>TDP</th><th>Price</th></tr>
+<tr><td>NVIDIA H100 SXM</td><td>80GB HBM3</td><td>700W</td><td>~$25-40K</td></tr>
+<tr><td>NVIDIA B200</td><td>192GB HBM3e</td><td>1000W</td><td>~$30-50K</td></tr>
+<tr><td>GB200 NVL72 (rack)</td><td>192GB/GPU x72</td><td>~120kW/rack</td><td>~$2-3M/rack</td></tr>
+<tr><td>AMD MI300X</td><td>192GB HBM3</td><td>750W</td><td>~$10-15K</td></tr></table>
+<h4>Supply Chain Bottlenecks</h4>
+<ul><li>CoWoS packaging at TSMC</li><li>HBM memory (SK Hynix, Samsung, Micron)</li><li>Substrate supply</li></ul>`,
+              children: []
+            },
+            {
+              id: "networking",
+              label: "Networking",
+              icon: "🌐",
+              category: "hardware",
+              summary: "InfiniBand (NVIDIA, 70-80% of AI training) vs Ethernet (Arista, Broadcom). $10-15M per 1000-GPU cluster.",
+              tags: ["stock:NVDA", "stock:ANET", "stock:AVGO"],
+              details: `<h3>AI Cluster Networking</h3>
+<table><tr><th>Attribute</th><th>InfiniBand</th><th>Ethernet/RoCE</th></tr>
+<tr><td>Latency</td><td>~0.5-1 μs</td><td>~1-2 μs</td></tr>
+<tr><td>Bandwidth</td><td>NDR 400 Gb/s</td><td>400/800 GbE</td></tr>
+<tr><td>AI training share</td><td>70-80%</td><td>Growing</td></tr>
+<tr><td>Vendor</td><td>NVIDIA only</td><td>Multi-vendor</td></tr>
+<tr><td>Cost/port</td><td>Higher</td><td>Lower</td></tr></table>
+<h4>NVIDIA Networking Stack</h4>
+<ul><li>ConnectX-7/8 NICs (400Gb/s)</li><li>Quantum-2/3 InfiniBand switches</li><li>Spectrum-X (AI-optimized Ethernet)</li><li>BlueField-3 DPUs</li></ul>
+<h4>Challengers</h4>
+<ul><li><strong>Arista Networks (ANET)</strong>: Dominant hyperscaler Ethernet</li>
+<li><strong>Broadcom (AVGO)</strong>: Tomahawk 5 switch silicon (51.2 Tb/s)</li>
+<li><strong>Ultra Ethernet Consortium</strong>: AMD, Arista, Broadcom, Cisco, Google, Meta — AI-optimized Ethernet standard</li></ul>`,
+              children: [
+                { id: "infiniband", label: "InfiniBand (NVIDIA)", icon: "🔗", category: "hardware", summary: "NVIDIA Quantum switches + ConnectX NICs. 70-80% of large AI training clusters. Proprietary lock-in.", tags: ["stock:NVDA"], details: `<h3>InfiniBand</h3><p>NVIDIA's end-to-end networking stack for AI training. Includes ConnectX-7/8 NICs, Quantum-2/3 switches, and NVLink/NVSwitch for intra-node.</p><ul><li>Proven at 10,000+ GPU scale</li><li>Native RDMA, adaptive routing, congestion control</li><li>Required for NVIDIA DGX SuperPOD reference architecture</li><li>Lock-in concern: entire stack is NVIDIA-only</li></ul>`, children: [] },
+                { id: "ultra-ethernet", label: "Ultra Ethernet Consortium", icon: "🔌", category: "hardware", summary: "Industry group (AMD, Arista, Broadcom, Google, Meta) building AI-optimized Ethernet to challenge InfiniBand.", tags: ["hot"], details: `<h3>Ultra Ethernet Consortium (UEC)</h3><p>Founded to break InfiniBand's monopoly in AI training networking.</p><h4>Members</h4><ul><li>AMD, Arista, Broadcom, Cisco, Google, Intel, Meta, Microsoft</li></ul><p>If UEC succeeds, it opens AI networking to multi-vendor competition — significant opportunity.</p>`, children: [] }
+              ]
+            },
+            {
+              id: "servers-odms",
+              label: "Server Manufacturers",
+              icon: "🏭",
+              category: "hardware",
+              summary: "Dell, Supermicro, HPE (OEMs) + Quanta/QCT, Wiwynn, Foxconn (ODMs for hyperscalers)",
+              tags: ["stock:DELL", "stock:SMCI", "stock:HPE"],
+              details: `<h3>Server Manufacturing</h3>
+<h4>OEMs (sell to enterprises)</h4>
+<table><tr><th>Company</th><th>Key Product</th><th>Position</th></tr>
+<tr><td>Dell (DELL)</td><td>PowerEdge XE9680</td><td>Largest branded AI server vendor</td></tr>
+<tr><td>Supermicro (SMCI)</td><td>GPU SuperServers</td><td>Fastest time-to-market, 100%+ YoY growth</td></tr>
+<tr><td>HPE (HPE)</td><td>ProLiant + Cray EX</td><td>Strong in HPC/government</td></tr>
+<tr><td>Lenovo</td><td>ThinkSystem</td><td>Strong in APAC</td></tr></table>
+<h4>ODMs (build for hyperscalers)</h4>
+<table><tr><th>Company</th><th>Customers</th><th>Note</th></tr>
+<tr><td>Quanta/QCT</td><td>Google, Meta, Microsoft</td><td>Largest ODM by volume</td></tr>
+<tr><td>Wiwynn</td><td>Meta, Microsoft</td><td>Custom designs for hyperscalers</td></tr>
+<tr><td>Foxconn</td><td>NVIDIA</td><td>Manufactures GB200 NVL72 racks</td></tr></table>
+<div class="callout">GB200 NVL72: NVIDIA acting as system vendor via Foxconn. Shift from selling chips to selling complete rack systems.</div>`,
+              children: []
+            },
+            {
+              id: "storage",
+              label: "Storage Systems",
+              icon: "💾",
+              category: "hardware",
+              summary: "High-performance parallel storage for AI. VAST Data, DDN, WEKA, Pure Storage. $3-8M per 1000-GPU cluster.",
+              details: `<h3>AI Training Storage</h3>
+<h4>Requirements</h4>
+<ul><li>Checkpoint writes: 10-50 TB per checkpoint, 100+ GB/s burst</li>
+<li>Data loading: 1-5 GB/s per GPU sustained</li>
+<li>GPU-Direct Storage (GDS): bypass CPU</li></ul>
+<h4>Key Vendors</h4>
+<table><tr><th>Vendor</th><th>Product</th><th>Strength</th></tr>
+<tr><td>VAST Data</td><td>VAST Platform</td><td>Fastest-growing storage startup ($500M+ ARR)</td></tr>
+<tr><td>DDN</td><td>EXAScaler, AI400X</td><td>Dominant in HPC/national labs</td></tr>
+<tr><td>WEKA</td><td>WekaFS</td><td>Cloud-native, lowest latency</td></tr>
+<tr><td>Pure Storage (PSTG)</td><td>FlashBlade</td><td>Enterprise integration</td></tr></table>`,
+              tags: ["stock:PSTG"],
+              children: []
+            }
+          ]
+        },
+        {
+          id: "layer5-integration",
+          label: "Layer 5: Rack & Stack",
+          icon: "🔩",
+          category: "integration",
+          summary: "Server installation, cabling, burn-in testing, liquid cooling connection. 6-16 weeks. $1-3M per 1000-GPU cluster.",
+          tags: ["opportunity"],
+          details: `<h3>Integration & Commissioning</h3>
+<h4>Process (6 phases, 6-16 weeks)</h4>
+<ol><li>Server unboxing & rack mounting ($50-200/server)</li>
+<li>Cable installation (3,000-6,000+ cables per 1000-GPU cluster)</li>
+<li>Network fabric configuration</li>
+<li>Liquid cooling connection ($5-20K/rack)</li>
+<li>Power-on & burn-in testing (24-72 hours)</li>
+<li>Acceptance testing & handover</li></ol>
+<div class="callout success">OPPORTUNITY: Very few firms do GPU cluster commissioning. Extreme shortage of techs who understand InfiniBand + liquid cooling + GPU diagnostics.</div>`,
+          children: []
+        },
+        {
+          id: "layer6-software",
+          label: "Layer 6: Software Stack",
+          icon: "💻",
+          category: "software",
+          summary: "OS, CUDA, Kubernetes/Slurm, GPU management, MLOps. NVIDIA provides much of this free.",
+          details: `<h3>Software Stack</h3>
+<h4>The NVIDIA Free Stack</h4>
+<ul><li>CUDA + drivers (free)</li>
+<li>NCCL — distributed GPU communication (free, open-source)</li>
+<li>DCGM — GPU monitoring (free)</li>
+<li>Base Command Manager — cluster management (free for NVIDIA hardware)</li>
+<li>NGC — container registry with optimized frameworks (free)</li></ul>
+<h4>Orchestration</h4>
+<table><tr><th>Tool</th><th>Type</th><th>Best For</th></tr>
+<tr><td>Kubernetes + GPU Operator</td><td>Open source</td><td>Cloud-native, inference</td></tr>
+<tr><td>Slurm</td><td>Open source</td><td>Large-scale training (10K+ GPUs)</td></tr>
+<tr><td>Run:ai (NVIDIA)</td><td>Commercial (acquired $700M)</td><td>GPU virtualization, multi-tenant</td></tr></table>
+<div class="callout">NVIDIA gives software free because it drives hardware sales. This is the "NVIDIA Ecosystem Enabler" model — you deploy their stack, they benefit from hardware lock-in.</div>`,
+          children: []
+        },
+        {
+          id: "layer7-ops",
+          label: "Layer 7: Operations",
+          icon: "📡",
+          category: "operations",
+          summary: "24/7 NOC, hardware break/fix, compliance (SOC2, ISO 27001), capacity planning",
+          details: `<h3>DC Operations</h3>
+<h4>Staffing per MW</h4>
+<table><tr><th>Role</th><th>Per MW</th><th>Skills</th></tr>
+<tr><td>DC Technician</td><td>3-5</td><td>Hardware, cabling, troubleshooting</td></tr>
+<tr><td>Network Engineer</td><td>1-2</td><td>InfiniBand, RDMA — very specialized</td></tr>
+<tr><td>GPU/HPC Engineer</td><td>1-2</td><td>CUDA, NCCL tuning — rare & expensive</td></tr>
+<tr><td>Facilities/MEP Engineer</td><td>1-2</td><td>Electrical, cooling, generators</td></tr>
+<tr><td>NOC Operator</td><td>2-3/shift (24/7)</td><td>Monitoring, first-response</td></tr></table>
+<div class="callout warning">At 10,000+ GPUs, hardware failures are DAILY. GPU failures, InfiniBand link flaps, storage issues are constant.</div>`,
+          children: []
+        },
+        {
+          id: "layer8-cloud",
+          label: "Layer 8: Cloud / Service Layer",
+          icon: "☁️",
+          category: "software",
+          summary: "Self-service portal, billing, GPU instance management, customer support. The revenue layer.",
+          details: `<h3>Cloud Service Layer</h3><p>This is what Nebius, CoreWeave, Lambda sell — the consumer-facing product built on all layers below.</p>
+<h4>Components</h4>
+<ul><li>Self-service portal & API ($500K-5M dev cost)</li>
+<li>Billing & metering (Stripe or custom)</li>
+<li>GPU instance management (K8s + GPU operator)</li>
+<li>Customer onboarding & support</li></ul>
+<div class="callout">The entire value of a "neocloud" is packaging layers 0-7 into a simple API/portal that customers can consume without understanding any of the complexity below.</div>`,
+          children: []
+        }
+      ]
+    },
+    {
+      id: "players",
+      label: "Key Players",
+      icon: "🏢",
+      category: "player",
+      summary: "Hyperscalers, neoclouds, colo REITs, DC developers, equipment makers, crypto pivots",
+      details: `<h3>Competitive Landscape</h3><p>The AI DC ecosystem has distinct player tiers, each with different business models, risk profiles, and opportunities.</p>`,
+      children: [
+        {
+          id: "hyperscalers",
+          label: "Hyperscalers",
+          icon: "🏛️",
+          category: "player",
+          summary: "AWS, Azure, GCP, Meta, Oracle — $300-500B/yr combined CapEx. The demand engine.",
+          tags: ["stock:AMZN", "stock:MSFT", "stock:GOOGL", "stock:META", "stock:ORCL"],
+          details: `<h3>Hyperscaler CapEx (2025)</h3>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">Microsoft</div><div class="bar-track"><div class="bar-fill" style="width:90%;background:var(--accent)">~$80B</div></div></div>
+  <div class="bar-row"><div class="bar-label">Amazon/AWS</div><div class="bar-track"><div class="bar-fill" style="width:85%;background:var(--orange)">~$75-100B</div></div></div>
+  <div class="bar-row"><div class="bar-label">Google</div><div class="bar-track"><div class="bar-fill" style="width:80%;background:var(--green)">~$75B</div></div></div>
+  <div class="bar-row"><div class="bar-label">Meta</div><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--purple)">~$60-65B</div></div></div>
+  <div class="bar-row"><div class="bar-label">Oracle</div><div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--red)">~$16-20B</div></div></div>
+</div>`,
+          children: []
+        },
+        {
+          id: "neoclouds",
+          label: "Neoclouds (GPU-as-a-Service)",
+          icon: "🚀",
+          category: "player",
+          summary: "CoreWeave, Nebius, Lambda, Crusoe, Together AI — GPU cloud providers challenging hyperscalers",
+          details: `<h3>Neocloud Landscape</h3><p>Purpose-built GPU cloud providers. Higher margins than colo, but massive capital requirements.</p>`,
+          children: [
+            { id: "nebius", label: "Nebius (NBIS)", icon: "🇫🇮", category: "player", summary: "Yandex spinoff. $530M rev (2025, +479% YoY). $2B NVIDIA investment. $17.4B Microsoft deal. European AI cloud.", tags: ["stock:NBIS", "hot"], details: `<h3>Nebius Group (NASDAQ: NBIS)</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$530M</div><div class="stat-label">2025 Revenue (+479%)</div></div><div class="stat-box"><div class="stat-val">$24-28B</div><div class="stat-label">Market Cap</div></div><div class="stat-box"><div class="stat-val">$2B</div><div class="stat-label">NVIDIA Investment</div></div><div class="stat-box"><div class="stat-val">3+ GW</div><div class="stat-label">Target by End 2026</div></div></div><h4>Key Deals</h4><ul><li><strong>Microsoft</strong>: $17.4B AI infrastructure agreement</li><li><strong>Meta</strong>: ~$3B five-year contract</li><li><strong>NVIDIA</strong>: $2B strategic investment (8.3% stake) + early Rubin GPU access</li></ul><h4>What Makes Nebius Special</h4><ul><li>Inherited world-class AI talent from Yandex</li><li>NVIDIA's preferred neocloud partner</li><li>European positioning (sovereign AI)</li><li>Toloka (data labeling) synergy</li></ul><h4>To Replicate</h4><ul><li>$2-5B+ minimum capital</li><li>Deep NVIDIA relationship</li><li>Production-grade ML infrastructure team</li><li>18-24 months to operational scale</li></ul>`, children: [] },
+            { id: "coreweave", label: "CoreWeave (CRWV)", icon: "⛏️", category: "player", summary: "Crypto→GPU cloud pivot. $55.6B backlog. $18.8B debt. IPO 2025. 250K+ GPUs deployed.", tags: ["stock:CRWV", "hot"], details: `<h3>CoreWeave (NASDAQ: CRWV)</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$55.6B</div><div class="stat-label">Revenue Backlog</div></div><div class="stat-box"><div class="stat-val">$18.8B</div><div class="stat-label">Total Debt</div></div><div class="stat-box"><div class="stat-val">250K+</div><div class="stat-label">GPUs Deployed</div></div><div class="stat-box"><div class="stat-val">60%+</div><div class="stat-label">Gross Margin</div></div></div><h4>Key Contracts</h4><ul><li><strong>OpenAI</strong>: $11.9B five-year deal</li><li><strong>Microsoft</strong>: $10B+ multi-year (62% of 2024 revenue)</li></ul><div class="callout danger">Risk: $18.8B debt. GPU depreciation. Customer concentration. If AI demand slows, this is existential.</div>`, children: [] },
+            { id: "crusoe", label: "Crusoe Energy", icon: "🔥", category: "player", summary: "Stranded gas→AI cloud. 1.2 GW Abilene campus. Sold mining biz. $0.01-0.03/kWh power advantage.", tags: ["opportunity"], details: `<h3>Crusoe Energy</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$998M</div><div class="stat-label">2025 Revenue (est.)</div></div><div class="stat-box"><div class="stat-val">1.2 GW</div><div class="stat-label">Abilene Campus</div></div></div><p>Founded 2018. Used stranded natural gas from oil wells. Pivoted all-in to AI (sold mining division to NYDIG). Now building GW-scale campuses with on-site gas power.</p><h4>Power Advantage</h4><ul><li>Historical: $0.01-0.03/kWh from stranded gas</li><li>New: On-site gas turbines + grid at large campuses</li><li>5-15 percentage points better margins than competitors</li></ul>`, children: [] },
+            { id: "lambda", label: "Lambda Labs", icon: "λ", category: "player", summary: "GPU cloud + on-prem sales. Developer-friendly. $320M+ funding. ~$1.5-2B valuation.", details: `<h3>Lambda Labs</h3><p>GPU cloud + turnkey on-prem GPU servers. Strong brand in ML research community. Lambda Stack simplifies CUDA/driver management.</p><ul><li>Cloud margins: 50-65%</li><li>Hardware sales margins: 20-35%</li><li>Valuation: ~$1.5-2B</li></ul>`, children: [] }
+          ]
+        },
+        {
+          id: "colo-reits",
+          label: "Colocation & DC REITs",
+          icon: "🏬",
+          category: "player",
+          summary: "Equinix, Digital Realty, QTS, CyrusOne — the landlords. 45-55% EBITDA margins.",
+          tags: ["stock:EQIX", "stock:DLR"],
+          details: `<h3>Colocation Providers</h3>
+<table><tr><th>Player</th><th>Portfolio</th><th>Market Cap</th><th>Note</th></tr>
+<tr><td>Equinix (EQIX)</td><td>260+ DCs, 70+ metros</td><td>~$75-85B</td><td>Largest global colo</td></tr>
+<tr><td>Digital Realty (DLR)</td><td>300+ DCs, 50+ metros</td><td>~$45-55B</td><td>Growing AI-ready capacity</td></tr>
+<tr><td>QTS</td><td>~35 DCs</td><td>Private (Blackstone)</td><td>4GW+ dev pipeline</td></tr>
+<tr><td>CyrusOne</td><td>~50 DCs</td><td>Private (KKR)</td><td>$15B+ BlackRock JV</td></tr></table>`,
+          children: []
+        },
+        {
+          id: "crypto-pivots",
+          label: "Crypto → AI Pivots",
+          icon: "🔄",
+          category: "player",
+          summary: "Applied Digital ($16B backlog), IREN ($9.7B Microsoft deal), Hut 8 ($7B Google deal)",
+          tags: ["stock:APLD", "stock:IREN", "stock:HUT"],
+          details: `<h3>Crypto-to-AI Pivots</h3>
+<table><tr><th>Company</th><th>Key Deal</th><th>Model</th></tr>
+<tr><td>Applied Digital (APLD)</td><td>$16B backlog (CoreWeave + hyperscaler)</td><td>Colo/landlord</td></tr>
+<tr><td>IREN (IREN)</td><td>$9.7B Microsoft deal, 140K GPUs target</td><td>GPU cloud owner</td></tr>
+<tr><td>Hut 8 (HUT)</td><td>$7B Google/FluidStack lease</td><td>Colo + 8.5 GW pipeline</td></tr></table>
+<h4>Key Lesson</h4>
+<div class="callout success">Power is the transferable asset, not mining hardware. Companies with cheap power + permitted sites have the real advantage. Purpose-built beats retrofit.</div>`,
+          children: []
+        },
+        {
+          id: "nvidia-ecosystem",
+          label: "NVIDIA Ecosystem",
+          icon: "💚",
+          category: "player",
+          summary: "Hardware + free software + Partner Network + strategic investments. The kingmaker.",
+          tags: ["stock:NVDA", "hot"],
+          details: `<h3>NVIDIA as Ecosystem Builder</h3>
+<p>NVIDIA doesn't just sell chips. They build an entire ecosystem that creates lock-in AND enables partners:</p>
+<h4>Hardware (Revenue)</h4>
+<ul><li>GPUs: H100, B200, GB200, Rubin</li>
+<li>Networking: InfiniBand, Spectrum-X</li>
+<li>DPUs: BlueField-3</li>
+<li>Complete racks: GB200 NVL72 (via Foxconn)</li></ul>
+<h4>Free Software (Lock-in)</h4>
+<ul><li>CUDA: The programming model. 4M+ developers.</li>
+<li>NCCL: Distributed GPU communication</li>
+<li>DCGM: GPU monitoring</li>
+<li>Base Command Manager: Cluster orchestration</li>
+<li>NGC: Optimized container registry</li>
+<li>NeMo: LLM training framework</li></ul>
+<h4>Partner Network</h4>
+<ul><li>Certification programs for partners</li>
+<li>DGX SuperPOD reference architecture</li>
+<li>GPU allocation priority for certified partners</li></ul>
+<h4>Strategic Investments</h4>
+<ul><li>Nebius: $2B</li><li>CoreWeave: major investor</li><li>Crusoe: investor</li><li>Applied Digital: investor</li></ul>
+<div class="callout success">NVIDIA ACTIVELY WANTS partners who can deploy their hardware globally. The "NVIDIA Ecosystem Enabler" role is real and supported. Get Partner Network certification ASAP.</div>`,
+          children: []
+        }
+      ]
+    },
+    {
+      id: "market",
+      label: "Market & Finance",
+      icon: "📊",
+      category: "market",
+      summary: "$300-500B/yr total investment. 25-35% CAGR. 15-25% levered IRR for well-contracted projects.",
+      details: `<h3>Market Overview</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">$300-500B</div><div class="stat-label">Annual Industry Investment</div></div>
+  <div class="stat-box"><div class="stat-val">$2T+</div><div class="stat-label">Cumulative 2024-2030 (McKinsey)</div></div>
+</div>`,
+      children: [
+        { id: "financial-models", label: "Financial Models", icon: "💰", category: "market", summary: "Build-own-operate vs colo vs BTS. $8-18M/MW to build. 15-25% levered IRR.", details: `<h3>DC Financial Models</h3><table><tr><th>Model</th><th>Who</th><th>Pros</th><th>Cons</th></tr><tr><td>Build-Own-Operate</td><td>Hyperscalers</td><td>Full control</td><td>Massive CapEx</td></tr><tr><td>Wholesale Colo</td><td>Large enterprise</td><td>Scale + some customization</td><td>Multi-year commits</td></tr><tr><td>Build-to-Suit</td><td>Hyperscalers for speed</td><td>Custom, off-balance-sheet</td><td>Developer margin</td></tr><tr><td>GPU-aaS (neocloud)</td><td>AI companies</td><td>No hardware ownership</td><td>Premium pricing</td></tr></table><h4>Returns</h4><ul><li>Levered IRR: 15-25% for new development</li><li>Unlevered: 8-14%</li><li>Payback: 4-7 years</li><li>Cap rates: 5-7% (compressed)</li></ul>`, children: [] },
+        { id: "geographic-markets", label: "Geographic Markets", icon: "🗺️", category: "market", summary: "NoVA, Texas, Nordics, Middle East, SE Asia — each with different power/regulatory dynamics", details: `<h3>Where AI DCs Are Being Built</h3><h4>North America</h4><ul><li><strong>Northern Virginia</strong>: World's largest DC market, now power-constrained</li><li><strong>Dallas-Fort Worth</strong>: Cheap power, ERCOT, fast permitting</li><li><strong>Phoenix</strong>: Cheap solar, available land</li><li><strong>Ohio</strong>: AWS/Google/Meta mega-campuses</li></ul><h4>Europe</h4><ul><li><strong>Nordics</strong>: Cheap hydro/wind, cold climate, sovereign AI</li><li><strong>Ireland</strong>: MORATORIUM on new connections</li></ul><h4>Emerging</h4><ul><li><strong>Middle East</strong>: Massive budgets, sovereign AI mandates</li><li><strong>Malaysia/Indonesia</strong>: Government mandates, cheap land</li><li><strong>India</strong>: Fastest-growing APAC market</li></ul>`, children: [] },
+        {
+          id: "risks",
+          label: "Risks & Unknowns",
+          icon: "⚠️",
+          category: "risk",
+          summary: "Demand cooling, overbuilding, efficiency gains, regulation, geopolitics, export controls",
+          details: `<h3>Key Risks</h3>
+<table><tr><th>Risk</th><th>Severity</th><th>Mitigant</th></tr>
+<tr><td>AI demand cooling</td><td style="color:var(--orange)">Medium</td><td>Inference growing faster than training</td></tr>
+<tr><td>Overbuilding</td><td style="color:var(--orange)">Medium</td><td>3-5yr construction pipeline committed</td></tr>
+<tr><td>Efficiency gains (DeepSeek-type)</td><td style="color:var(--yellow)">Medium</td><td>Jevons paradox — efficiency → more usage</td></tr>
+<tr><td>Regulatory moratoriums</td><td style="color:var(--orange)">Medium</td><td>Secondary markets, behind-the-meter</td></tr>
+<tr><td>Export controls (chips)</td><td style="color:var(--red)">High for some regions</td><td>Region selection, compliance expertise</td></tr>
+<tr><td>Taiwan/TSMC risk</td><td style="color:var(--red)">High impact, low probability</td><td>Diversification underway but slow</td></tr></table>`,
+          children: []
+        }
+      ]
+    },
+    {
+      id: "labor",
+      label: "Labor & Workforce",
+      icon: "👷",
+      category: "opportunity",
+      summary: "439K construction workers short. 340K DC positions unfilled by end 2026. Only 15% of applicants qualified. 37 distinct professions mapped.",
+      narrative: `The AI data center boom has created a labor crisis that nobody planned for. The industry needs <strong>439,000 more construction workers today</strong>, and <strong>340,000 data center positions</strong> will go unfilled by end of 2026 without intervention. Only <strong>15% of applicants</strong> meet minimum qualifications for modern DC roles. This isn't just about electricians (though that's severe: 80K/yr shortage, 4-5 year apprenticeship). The crisis spans 37+ distinct professions from general laborers to GPU/HPC engineers ($250-500K). The opportunity: some roles can be trained in <strong>weeks</strong> while commanding $35-55/hr, while others take years but pay $200K+. Understanding this matrix is key to finding your entry point.`,
+      details: `<h3>The AI DC Labor Crisis</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">439K</div><div class="stat-label">Construction Workers Short (2025)</div></div>
+  <div class="stat-box"><div class="stat-val">340K</div><div class="stat-label">DC Positions Unfilled by End 2026</div></div>
+  <div class="stat-box"><div class="stat-val">15%</div><div class="stat-label">Of Applicants Meet Min Qualifications</div></div>
+  <div class="stat-box"><div class="stat-val">650K</div><div class="stat-label">Jobs from 2026 DC Construction Boom</div></div>
+</div>
+<p>The workforce spans 8 categories with 37+ distinct roles. Below you can explore each category with detailed shortage data, training requirements, and opportunity ratings.</p>
+<div class="callout success">Key insight: the highest-opportunity roles are NOT the highest-paid. The sweet spot is roles with HIGH shortage + HIGH demand growth + FAST entry. Liquid cooling installer, cabling tech, and rack-and-stack technician hit all three.</div>`,
+      children: [
+        {
+          id: "labor-trades",
+          label: "Construction Trades",
+          icon: "🔨",
+          category: "opportunity",
+          summary: "Electricians (5/5 shortage), pipefitters, welders, concrete, iron workers, laborers. 439K total shortage.",
+          narrative: `Construction trades are the foundation of every data center. You can't build a DC without electricians, pipefitters, welders, and concrete workers. The <strong>electrician shortage is the most severe</strong> (80K+/yr, 4-5 year apprenticeship pipeline). But there's a spectrum: general laborers can start in <strong>days</strong> (OSHA 10 cert), while master electricians need <strong>8+ years</strong>. The DC construction boom is competing with residential solar, EV infrastructure, grid modernization, and semiconductor fabs for the same workers — driving wages up 20-50%.`,
+          details: `<h3>Construction Trades</h3>
+<h4>Opportunity Matrix</h4>
+<table><tr><th>Role</th><th>Shortage</th><th>Demand</th><th>Entry Speed</th><th>Earning</th><th>Training Time</th><th>Pay Range</th></tr>
+<tr><td><strong>Electrician (Journeyman)</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>2/5</td><td>4/5</td><td>4-5 years apprenticeship</td><td>$62K-$156K+</td></tr>
+<tr><td><strong>HV Specialist</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td>4/5</td><td>6-9 years total</td><td>$85K-$180K+</td></tr>
+<tr><td><strong>Pipefitter (Liquid Cooling)</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>2/5</td><td>3/5</td><td>4-5 years apprenticeship</td><td>$65K-$130K</td></tr>
+<tr><td><strong>Controls/Automation Tech</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--orange)">4/5</td><td>2/5</td><td>3/5</td><td>2-year degree + exp</td><td>$42K-$110K</td></tr>
+<tr><td><strong>Welder</strong></td><td>3/5</td><td>3/5</td><td>3/5</td><td>3/5</td><td>7mo-2yr trade school</td><td>$42K-$100K</td></tr>
+<tr><td><strong>Iron Worker</strong></td><td>3/5</td><td>3/5</td><td>2/5</td><td>3/5</td><td>3-4yr apprenticeship</td><td>$40K-$100K</td></tr>
+<tr><td><strong>Heavy Equip Operator</strong></td><td>2/5</td><td>3/5</td><td style="color:var(--green)">4/5</td><td>2/5</td><td>3-6 months</td><td>$42K-$80K+</td></tr>
+<tr><td><strong>General Laborer</strong></td><td>2/5</td><td>3/5</td><td style="color:var(--green)">5/5</td><td>1/5</td><td>Days (OSHA 10)</td><td>$31K-$52K</td></tr></table>
+<div class="callout warning">Electricians are the #1 bottleneck. 713K in US workforce, 81K openings/yr, 20K retiring annually, 30% of union electricians aged 50-70. No shortcut: 4-5 year apprenticeship required by law.</div>`,
+          children: []
+        },
+        {
+          id: "labor-power",
+          label: "Electrical & Power",
+          icon: "⚡",
+          category: "opportunity",
+          summary: "Power systems engineers (CRITICAL), commissioning engineers ($147-220K, CRITICAL), substation techs, generator/UPS techs.",
+          narrative: `Power roles are where the most acute shortages meet the highest pay. <strong>Commissioning engineers</strong> are perhaps THE hardest-to-fill position in the industry — they must understand electrical, mechanical, and controls systems deeply enough to verify an entire data center works before it goes live. They earn <strong>$147-220K+</strong> but require 8-12 years of experience. <strong>Power systems engineers</strong> design the electrical backbone of every DC — there are 3 job openings for every 1 qualified candidate. Even generator and UPS technicians are in growing demand as every MW of DC capacity needs backup power.`,
+          details: `<h3>Electrical & Power Roles</h3>
+<table><tr><th>Role</th><th>Shortage</th><th>Demand</th><th>Entry Speed</th><th>Earning</th><th>Training</th><th>Pay</th></tr>
+<tr><td><strong>Commissioning Engineer</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td style="color:var(--green)">5/5</td><td>Eng degree + 5-10yr exp</td><td>$147K-$220K+</td></tr>
+<tr><td><strong>Power Systems Engineer</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td>4/5</td><td>BSEE + PE license</td><td>$82K-$281K</td></tr>
+<tr><td><strong>Electrical Inspector</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--orange)">4/5</td><td>1/5</td><td>3/5</td><td>Master electrician + cert</td><td>$65K-$130K</td></tr>
+<tr><td><strong>Substation Technician</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--red)">5/5</td><td>2/5</td><td>3/5</td><td>Associates + apprenticeship</td><td>$63K-$120K</td></tr>
+<tr><td><strong>Generator Technician</strong></td><td>3/5</td><td>4/5</td><td>3/5</td><td>3/5</td><td>1-2yr trade + OEM cert</td><td>$52K-$100K</td></tr>
+<tr><td><strong>UPS/Battery Technician</strong></td><td>3/5</td><td>4/5</td><td>3/5</td><td>2/5</td><td>6-12mo OEM training</td><td>$44K-$90K</td></tr></table>
+<div class="callout">Commissioning is a bottleneck: only ~8-12K professionals in the US. Every DC needs them. A single undocumented fire-stopping penetration can delay a $100M project by months.</div>`,
+          children: []
+        },
+        {
+          id: "labor-cooling",
+          label: "Cooling & Mechanical",
+          icon: "❄️",
+          category: "opportunity",
+          summary: "Liquid cooling specialists (CRITICAL, only 2-5K in US, 50-100%/yr growth!), HVAC techs, BMS techs, mechanical engineers.",
+          narrative: `This is where the <strong>single biggest workforce gap meets the fastest-growing demand</strong>. Liquid cooling specialists — the people who install and maintain CDUs, cold plates, and piping for GPU racks — barely exist as a profession. There are only <strong>2,000-5,000 in the entire US</strong>. Demand is growing <strong>50-100% per year</strong> because NVIDIA's latest GPU racks physically cannot work without liquid cooling. HVAC technicians are also short, but liquid cooling is a different beast — it combines pipefitting, thermal engineering, and IT awareness in a way that no existing trade fully covers.`,
+          details: `<h3>Cooling & Mechanical Roles</h3>
+<table><tr><th>Role</th><th>Shortage</th><th>Demand</th><th>Entry Speed</th><th>Earning</th><th>Training</th><th>Pay</th></tr>
+<tr><td style="color:var(--cyan)"><strong>Liquid Cooling Specialist</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>2/5</td><td>4/5</td><td>HVAC/pipe base + 6-18mo OEM</td><td>$75K-$185K</td></tr>
+<tr><td><strong>Mechanical Engineer (Cooling)</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td>4/5</td><td>BSME + PE</td><td>$115K-$250K+</td></tr>
+<tr><td><strong>HVAC Technician</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--orange)">4/5</td><td>3/5</td><td>3/5</td><td>6mo-2yr trade + EPA 608</td><td>$42K-$110K</td></tr>
+<tr><td><strong>BMS Technician</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--orange)">4/5</td><td>2/5</td><td>3/5</td><td>Associates + vendor certs</td><td>$45K-$100K</td></tr>
+<tr><td><strong>Refrigeration Technician</strong></td><td>3/5</td><td>4/5</td><td>3/5</td><td>3/5</td><td>Trade school + EPA cert</td><td>$46K-$119K</td></tr></table>
+<div class="callout success">SWEET SPOT: Liquid cooling specialist. Only 2-5K people in the US. Growing 50-100%/yr. Can train an HVAC tech or pipefitter in 6-18 months of OEM-specific training. Pay: $75-185K. This is the role to build a workforce company around.</div>`,
+          children: []
+        },
+        {
+          id: "labor-it",
+          label: "IT Infrastructure",
+          icon: "🖥️",
+          category: "opportunity",
+          summary: "DC technicians (rack-and-stack), cabling techs (BICSI), network engineers (InfiniBand!), GPU/HPC engineers ($250-500K, CRITICAL).",
+          narrative: `IT infrastructure roles range from entry-level rack-and-stack technicians (trainable in <strong>weeks</strong>) to ultra-specialized GPU/HPC engineers (earning <strong>$250-500K</strong> but with only a few thousand globally). The <strong>fastest entry point</strong> in the entire value chain is structured cabling technician: a BICSI IN1 certification takes 5 days and gets you $30-45/hr on DC projects. At the other extreme, InfiniBand network engineers who can configure RDMA and tune NCCL across 10,000 GPUs are so rare that companies poach them from national labs and NVIDIA itself.`,
+          details: `<h3>IT Infrastructure Roles</h3>
+<table><tr><th>Role</th><th>Shortage</th><th>Demand</th><th>Entry Speed</th><th>Earning</th><th>Training</th><th>Pay</th></tr>
+<tr><td style="color:var(--red)"><strong>GPU/HPC Engineer</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td style="color:var(--green)">5/5</td><td>CS/EE degree + years CUDA exp</td><td>$250K-$500K+</td></tr>
+<tr><td style="color:var(--red)"><strong>InfiniBand Network Eng</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td style="color:var(--green)">5/5</td><td>CS/EE + years IB experience</td><td>$200K-$350K+</td></tr>
+<tr><td><strong>Linux Sysadmin</strong></td><td>3/5</td><td>4/5</td><td>2/5</td><td>3/5</td><td>RHCSA/RHCE + experience</td><td>$70K-$140K</td></tr>
+<tr><td><strong>Storage Engineer</strong></td><td>3/5</td><td>4/5</td><td>2/5</td><td>3/5</td><td>CS/IT degree + vendor certs</td><td>$90K-$160K</td></tr>
+<tr><td style="color:var(--green)"><strong>DC Technician (Rack&Stack)</strong></td><td>3/5</td><td>4/5</td><td style="color:var(--green)">4/5</td><td>2/5</td><td>CompTIA Server+ (2-4 wks)</td><td>$40K-$75K</td></tr>
+<tr><td style="color:var(--green)"><strong>Cabling Tech (BICSI)</strong></td><td>3/5</td><td>4/5</td><td style="color:var(--green)">5/5</td><td>2/5</td><td>BICSI IN1 (5 days!)</td><td>$35K-$65K</td></tr></table>
+<div class="callout">Fastest entry in the entire value chain: BICSI IN1 cabling certification = 5 days. CompTIA Server+ = 2-4 weeks. These get you on DC projects immediately at $30-45/hr.</div>`,
+          children: []
+        },
+        {
+          id: "labor-software",
+          label: "Software & AI",
+          icon: "💻",
+          category: "opportunity",
+          summary: "MLOps ($200-350K), DevOps/SRE for GPU clusters (CRITICAL, $250-400K), K8s admins, DCIM admins, AI researchers ($300K-1M+).",
+          narrative: `Software roles in the DC value chain divide into two worlds. <strong>Infrastructure software</strong> (Kubernetes admins, DCIM, DevOps) keeps the DC running — these are well-paid but not as scarce. <strong>AI-specific software</strong> (GPU cluster DevOps, MLOps, AI researchers) is where shortage meets stratospheric pay. A DevOps/SRE who can manage distributed training across 10,000 GPUs with checkpointing and fault recovery earns <strong>$250-400K</strong>. AI/ML researchers at frontier labs earn <strong>$300K-1M+</strong>. These roles require years of specialized experience and are essentially impossible to "bootcamp" into.`,
+          details: `<h3>Software & AI Roles</h3>
+<table><tr><th>Role</th><th>Shortage</th><th>Demand</th><th>Entry Speed</th><th>Earning</th><th>Training</th><th>Pay</th></tr>
+<tr><td><strong>AI/ML Researcher</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td style="color:var(--green)">5/5</td><td>PhD + years research</td><td>$300K-$1M+</td></tr>
+<tr><td><strong>DevOps/SRE (GPU Clusters)</strong></td><td style="color:var(--red)">5/5</td><td style="color:var(--red)">5/5</td><td>1/5</td><td style="color:var(--green)">5/5</td><td>CS degree + years K8s/GPU exp</td><td>$250K-$400K</td></tr>
+<tr><td><strong>MLOps Engineer</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--red)">5/5</td><td>2/5</td><td style="color:var(--green)">5/5</td><td>CS degree + ML platform exp</td><td>$200K-$350K</td></tr>
+<tr><td><strong>K8s Administrator</strong></td><td>3/5</td><td>4/5</td><td>2/5</td><td>3/5</td><td>CKA cert + experience</td><td>$100K-$180K</td></tr>
+<tr><td><strong>DCIM Administrator</strong></td><td>3/5</td><td>3/5</td><td>2/5</td><td>2/5</td><td>IT background + vendor training</td><td>$60K-$100K</td></tr></table>`,
+          children: []
+        },
+        {
+          id: "labor-ops",
+          label: "DC Operations",
+          icon: "📡",
+          category: "opportunity",
+          summary: "NOC operators (entry-level, fast training), facilities managers, DC ops managers ($180-300K), security, compliance.",
+          details: `<h3>Operations Roles</h3>
+<table><tr><th>Role</th><th>Shortage</th><th>Demand</th><th>Entry Speed</th><th>Earning</th><th>Training</th><th>Pay</th></tr>
+<tr><td><strong>DC Operations Manager</strong></td><td style="color:var(--orange)">4/5</td><td style="color:var(--orange)">4/5</td><td>1/5</td><td style="color:var(--green)">5/5</td><td>10+ years DC experience</td><td>$180K-$300K+</td></tr>
+<tr><td><strong>Facilities Manager</strong></td><td>3/5</td><td>4/5</td><td>2/5</td><td>3/5</td><td>Engineering degree + exp</td><td>$80K-$140K</td></tr>
+<tr><td style="color:var(--green)"><strong>NOC Operator</strong></td><td>2/5</td><td>3/5</td><td style="color:var(--green)">4/5</td><td>2/5</td><td>IT fundamentals + 2-4wk training</td><td>$45K-$75K</td></tr>
+<tr><td style="color:var(--green)"><strong>Security Officer</strong></td><td>2/5</td><td>3/5</td><td style="color:var(--green)">5/5</td><td>1/5</td><td>Guard license (1-2 weeks)</td><td>$35K-$55K</td></tr>
+<tr><td><strong>Compliance Specialist</strong></td><td>3/5</td><td>4/5</td><td>2/5</td><td>3/5</td><td>IT audit exp + SOC2/ISO certs</td><td>$80K-$140K</td></tr></table>`,
+          children: []
+        },
+        {
+          id: "labor-opportunity-matrix",
+          label: "Opportunity Heat Map",
+          icon: "🎯",
+          category: "opportunity",
+          summary: "The sweet spot: HIGH shortage + HIGH demand + FAST entry. Top picks: liquid cooling, cabling, rack-and-stack, commissioning.",
+          tags: ["hot"],
+          narrative: `Not all shortages are equal opportunities. The <strong>ideal business opportunity</strong> is a role with severe shortage, exploding demand, AND fast training — so you can hire generic workers, train them quickly, and bill them at premium rates. Here's the matrix that reveals the sweet spots.`,
+          details: `<h3>Opportunity Matrix: Where Shortage Meets Trainability</h3>
+<h4>The Sweet Spots (High Shortage + Fast Entry)</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">Cabling Tech</div><div class="bar-track"><div class="bar-fill" style="width:95%;background:var(--green)">5 days training → $30-45/hr · Shortage: 3/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">Rack & Stack Tech</div><div class="bar-track"><div class="bar-fill" style="width:85%;background:var(--green)">2-4 weeks → $25-40/hr · Shortage: 3/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">NOC Operator</div><div class="bar-track"><div class="bar-fill" style="width:80%;background:var(--green)">2-4 weeks → $22-36/hr · Shortage: 2/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">Heavy Equip Op</div><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--cyan)">3-6 months → $20-38/hr · Shortage: 2/5</div></div></div>
+</div>
+<h4>The Premium Gaps (Critical Shortage + Long Training = High Value)</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">GPU/HPC Engineer</div><div class="bar-track"><div class="bar-fill" style="width:98%;background:var(--red)">$250-500K · Years of CUDA exp · Shortage: 5/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">InfiniBand Eng</div><div class="bar-track"><div class="bar-fill" style="width:95%;background:var(--red)">$200-350K · Years of IB exp · Shortage: 5/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">Commissioning Eng</div><div class="bar-track"><div class="bar-fill" style="width:92%;background:var(--red)">$147-220K · 8-12yr to senior · Shortage: 5/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">DevOps/SRE (GPU)</div><div class="bar-track"><div class="bar-fill" style="width:90%;background:var(--red)">$250-400K · CS + years GPU · Shortage: 5/5</div></div></div>
+</div>
+<h4>The "Goldilocks" Zone (High Shortage + Medium Training)</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label" style="color:var(--cyan)">Liquid Cooling Spec</div><div class="bar-track"><div class="bar-fill" style="width:95%;background:var(--cyan)">$75-185K · HVAC base + 6-18mo OEM · Shortage: 5/5 · Growth: 50-100%/yr</div></div></div>
+  <div class="bar-row"><div class="bar-label">HVAC Technician</div><div class="bar-track"><div class="bar-fill" style="width:75%;background:var(--yellow)">$42-110K · 6mo-2yr trade school · Shortage: 4/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">Generator Tech</div><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--yellow)">$52-100K · 1-2yr trade + OEM · Shortage: 3/5</div></div></div>
+  <div class="bar-row"><div class="bar-label">Controls Tech</div><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--yellow)">$42-110K · 2yr degree · Shortage: 4/5</div></div></div>
+</div>
+<div class="callout success"><strong>For your workforce company</strong>: Start with cabling + rack-and-stack (fastest entry, volume play). Add liquid cooling (highest value, moderate training). Eventually add commissioning services (premium pricing, longer ramp).</div>
+<h4>Full 37-Role Report</h4>
+<p>Detailed data for all 37 professions is in <code>ai_datacenter_workforce_map.md</code></p>`,
+          children: []
+        }
+        {
+          id: "labor-training",
+          label: "Training Programs & Schools",
+          icon: "🎓",
+          category: "opportunity",
+          summary: "50-100K graduates/yr vs 439K+ needed. Microsoft, Google, AWS run programs. No global standard. Liquid cooling training barely exists.",
+          tags: ["hot", "opportunity"],
+          narrative: `The world IS starting to recognize the DC labor crisis — but the response is <strong>dramatically insufficient</strong>. Microsoft runs 13+ Datacenter Academies (free, 2 semesters). Google committed $10M to train 100,000 electricians via IBEW. AWS re/Start has placed 20,000+ graduates. But these programs collectively produce maybe <strong>50-100K graduates per year against 439K+ workers needed</strong>. The biggest gaps: <strong>liquid cooling</strong> (ByteBridge created the FIRST certification in 2025), <strong>commissioning</strong> (no dedicated training program exists), and <strong>AI infrastructure management</strong> (GPU cluster operations). There is no global certification standard. 33% of the current workforce is nearing retirement, losing 23,000 experienced workers annually. This is an enormous opportunity for training companies.`,
+          details: `<h3>Training Programs Landscape</h3>
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-val">50-100K</div><div class="stat-label">Graduates/yr (est.)</div></div>
+  <div class="stat-box"><div class="stat-val">439K+</div><div class="stat-label">Workers Needed</div></div>
+  <div class="stat-box"><div class="stat-val">33%</div><div class="stat-label">Workforce Nearing Retirement</div></div>
+  <div class="stat-box"><div class="stat-val">53%</div><div class="stat-label">Operators Struggle to Find Staff</div></div>
+</div>
+
+<h4>Hyperscaler Programs</h4>
+<table><tr><th>Company</th><th>Program</th><th>Scale</th><th>Model</th></tr>
+<tr><td><strong>Microsoft</strong></td><td>Datacenter Academy</td><td>13+ colleges, Saudi Arabia launch Feb 2025</td><td>Free, 2 semesters, community college partnership</td></tr>
+<tr><td><strong>Google</strong></td><td>$10M Electrician Training</td><td>Target: 100K electricians, 30K apprentices</td><td>Via IBEW/NECA partnerships</td></tr>
+<tr><td><strong>AWS</strong></td><td>re/Start + Skill Builder</td><td>20K+ graduates, 70 countries, 31M+ learners</td><td>Free cloud/IT training, job placement</td></tr>
+<tr><td><strong>Meta</strong></td><td>"Hard Hat in Hand"</td><td>$94M+ in community grants</td><td>Construction trades focus</td></tr></table>
+
+<h4>Industry Certifications</h4>
+<table><tr><th>Provider</th><th>Program</th><th>Scale</th><th>Duration</th></tr>
+<tr><td><strong>Uptime Institute</strong></td><td>ATD, AOS, ATS certs + CNet Training (acquired 2023)</td><td>90K+ graduates, 100+ countries</td><td>3-5 days per cert</td></tr>
+<tr><td><strong>EPI</strong></td><td>CDCP, CDCS, CDCE</td><td>Leading globally recognized DC cert</td><td>2-5 days per level</td></tr>
+<tr><td><strong>BICSI</strong></td><td>IN1, IN2, RCDD</td><td>Dominant in cabling/design</td><td>5 days (IN1) to 6+ months (RCDD)</td></tr>
+<tr><td><strong>Schneider Electric</strong></td><td>DCCA</td><td>Free training, $250 exam</td><td>Self-paced</td></tr>
+<tr><td><strong>Vertiv</strong></td><td>3 new academies (2025)</td><td>Frankfurt, Manila, Pune. 100+ courses</td><td>Varies</td></tr></table>
+
+<h4>New Programs (2024-2026)</h4>
+<ul>
+<li><strong>NVCC (Virginia)</strong>: First accredited 2-year DC Operations AAS degree</li>
+<li><strong>SMU</strong>: MS in Datacenter Systems Engineering ($125K starting salary)</li>
+<li><strong>ByteBridge</strong>: First liquid cooling certification (FLCC) — launched 2025</li>
+<li><strong>NVIDIA DLI</strong>: Professional certification exams launching 2026</li>
+<li>12+ community colleges launched DC certificate programs in 2024-2025</li>
+</ul>
+
+<h4>Critical Gaps (Opportunity!)</h4>
+<div class="bar-chart">
+  <div class="bar-row"><div class="bar-label">Liquid Cooling</div><div class="bar-track"><div class="bar-fill" style="width:10%;background:var(--red)">~1 cert exists (ByteBridge)</div></div></div>
+  <div class="bar-row"><div class="bar-label">Commissioning</div><div class="bar-track"><div class="bar-fill" style="width:5%;background:var(--red)">No dedicated program</div></div></div>
+  <div class="bar-row"><div class="bar-label">GPU Cluster Ops</div><div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--red)">NVIDIA DLI only, launching 2026</div></div></div>
+  <div class="bar-row"><div class="bar-label">General DC Tech</div><div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--orange)">Growing but fragmented</div></div></div>
+  <div class="bar-row"><div class="bar-label">Cabling (BICSI)</div><div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--yellow)">Well-established</div></div></div>
+  <div class="bar-row"><div class="bar-label">Electrician</div><div class="bar-track"><div class="bar-fill" style="width:50%;background:var(--yellow)">IBEW + apprenticeships, but 4-5yr pipeline</div></div></div>
+</div>
+<div class="callout success"><strong>Business opportunity</strong>: Create a training academy focused on the gaps — liquid cooling installation, DC commissioning basics, GPU cluster operations. Partner with NVIDIA DLI, CoolIT, Vertiv for curriculum. Certify graduates. Place them in DC projects. Charge both students AND employers.</div>
+
+<h4>Government Response</h4>
+<ul>
+<li><strong>US</strong>: No dedicated federal DC workforce program. DOL apprenticeship expansion is generic. Trump EO on DC permitting mentions workforce but no funding.</li>
+<li><strong>UK</strong>: Declared DCs "nationally significant infrastructure" — workforce implications unclear</li>
+<li><strong>Saudi Arabia</strong>: Launched Microsoft Datacenter Academy for workforce localization</li>
+<li><strong>Immigration</strong>: H-1B restrictions tightening. No DC-specific visa category. Industry lobbying for skilled trade visa programs.</li>
+</ul>
+<div class="callout danger">The gap between training output (~50-100K/yr) and workforce demand (439K+) is so large that the industry will be labor-constrained for at least 3-5 years regardless of what programs launch today.</div>
+
+<h4>Full Report</h4>
+<p>Complete analysis of all programs worldwide in <code>data_center_workforce_training_programs_report.md</code></p>`,
+          children: []
+        }
+      ]
+    },
+    {
+      id: "opportunities",
+      label: "Business Opportunities",
+      icon: "💎",
+      category: "opportunity",
+      summary: "Ranked by conviction: workforce company → liquid cooling → commissioning → enablement platform → neocloud",
+      details: `<h3>Ranked Opportunities</h3><p>Ordered by combination of conviction, accessibility, and risk-adjusted return.</p>`,
+      children: [
+        { id: "opp-workforce", label: "#1: AI DC Workforce Company", icon: "👷", category: "opportunity", summary: "Recruit, train, deploy cabling/cooling/rack technicians. $2-5M capital. 3-6 months to revenue.", tags: ["opportunity", "Tier 1"], details: `<h3>Specialty Workforce Company</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$2-5M</div><div class="stat-label">Capital Required</div></div><div class="stat-box"><div class="stat-val">3-6mo</div><div class="stat-label">Time to Revenue</div></div><div class="stat-box"><div class="stat-val">25-35%</div><div class="stat-label">Margin</div></div><div class="stat-box"><div class="stat-val">LOW</div><div class="stat-label">Risk</div></div></div><h4>Why Now</h4><ul><li>430K worker shortage, wages up 20-50%</li><li>Every DC project is labor-constrained</li><li>Even if AI cools, 3-5yr pipeline is committed</li></ul><h4>What to Train</h4><ul><li>BICSI IN1 (5 days) → structured cabling</li><li>Liquid cooling vendor training (2-4 weeks)</li><li>OSHA 30 + NFPA 70E (1 week)</li><li><strong>Total: 6-8 weeks → $35-55/hr billing</strong></li></ul>`, children: [] },
+        { id: "opp-cooling", label: "#2: Liquid Cooling Specialist", icon: "❄️", category: "opportunity", summary: "THE emerging skill gap. Every NVIDIA Blackwell rack needs it. $3-8M capital.", tags: ["opportunity", "Tier 1"], details: `<h3>Liquid Cooling Installation Specialist</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$3-8M</div><div class="stat-label">Capital Required</div></div><div class="stat-box"><div class="stat-val">$20-100M/yr</div><div class="stat-label">Revenue Potential (3-5yr)</div></div></div><p>NVIDIA GB200/Rubin MANDATE liquid cooling. 95%+ of new AI racks need it. Very few firms can install CDUs, piping, cold plates, leak detection.</p><div class="callout success">Path: Subcontract on DC projects → direct contracts → franchise model</div>`, children: [] },
+        { id: "opp-commissioning", label: "#3: DC Commissioning Services", icon: "✅", category: "opportunity", summary: "Test and validate power, cooling, networking before DC goes live. Extreme shortage. $2-5M capital.", tags: ["opportunity", "Tier 1"], details: `<h3>Commissioning & Validation</h3><p>Every DC must be commissioned before going live. Training: CDCP (2 weeks) + vendor certs (2-4 weeks) + NFPA 70E (3 days). Total: ~2-3 months → $40-65/hr billing.</p>`, children: [] },
+        { id: "opp-enablement", label: "#4: AI DC Enablement Platform", icon: "🌍", category: "opportunity", summary: "YOUR VISION: Help regional investors build + operate AI DCs with NVIDIA stack. $20-100M capital.", tags: ["opportunity", "Tier 2", "hot"],
+              narrative: `Imagine you're a wealthy investor in Saudi Arabia, Malaysia, or Brazil. Your government wants sovereign AI compute. You have capital, maybe even land with power. But you have <strong>zero idea</strong> how to build a data center, buy GPUs, set up InfiniBand networking, deploy Kubernetes, or manage liquid cooling. You need someone who can do it all for you — from site assessment to operational GPU cloud. That's the "AI DC Enablement Platform" vision: you become the expert integrator who helps regional investors worldwide build and operate AI data centers using NVIDIA's reference architectures and free software stack. NVIDIA <strong>actively wants</strong> this role to exist — they invest in companies that expand their ecosystem. You don't own the GPUs or the DCs (your clients do), which keeps you asset-light while earning from services + recurring managed operations + marketplace fees.`,
+              details: `<h3>AI DC Enablement Platform — "Nebius-for-Others"</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$20-100M</div><div class="stat-label">Capital Required</div></div><div class="stat-box"><div class="stat-val">6-12mo</div><div class="stat-label">Time to Revenue</div></div><div class="stat-box"><div class="stat-val">30-50%</div><div class="stat-label">Blended Margin</div></div><div class="stat-box"><div class="stat-val">MEDIUM</div><div class="stat-label">Risk</div></div></div><h4>The Vision</h4><ul><li>Advise regional investors on site, power, design</li><li>Manage construction (or specialties)</li><li>Deploy NVIDIA hardware + software stack</li><li>Operate managed services</li><li>Connect capacity to GPU consumers (marketplace)</li></ul><h4>Why It Works</h4><ul><li>NVIDIA actively wants ecosystem enablers</li><li>Hundreds of regions want sovereign AI compute</li><li>Local investors have capital but zero DC expertise</li><li>Recurring revenue: construction → managed services → marketplace</li></ul><h4>Target Markets</h4><ul><li>Middle East (Saudi, UAE) — massive budgets, no local expertise</li><li>SE Asia (Malaysia, Indonesia) — government mandates</li><li>LatAm (Brazil, Mexico) — growing demand</li><li>US secondary markets — investors with land/power but no know-how</li></ul>`, children: [] },
+        { id: "opp-neocloud", label: "#7: Neocloud (Nebius-like)", icon: "🚀", category: "opportunity", summary: "Own GPUs, operate DC, sell compute. $500M-5B+ capital. VERY HIGH risk. Huge upside if it works.", tags: ["Tier 3"], details: `<h3>Neocloud / GPU-as-a-Service</h3><div class="stat-grid"><div class="stat-box"><div class="stat-val">$500M-5B+</div><div class="stat-label">Capital Required</div></div><div class="stat-box"><div class="stat-val">12-24mo</div><div class="stat-label">Time to Revenue</div></div><div class="stat-box"><div class="stat-val">55-70%</div><div class="stat-label">Gross Margin</div></div><div class="stat-box"><div class="stat-val">VERY HIGH</div><div class="stat-label">Risk</div></div></div><div class="callout danger">Requires massive capital, NVIDIA relationship, anchor tenant. CoreWeave has $18.8B in debt. Not recommended as starting point.</div><p>Recommended path: Start with Tier 1 services → evolve through Tier 2 enablement → potentially Tier 3 neocloud with proven track record and relationships.</p>`, children: [] }
+      ]
+    },
+    {
+      id: "strategy",
+      label: "Your Strategy",
+      icon: "🎯",
+      category: "strategy",
+      summary: "Crawl → Walk → Run. Start services ($3-5M), grow to enablement ($20-100M), then platform ($50-200M)",
+      details: `<h3>Recommended Path</h3>
+<div class="callout success">Start as a specialty services company. Build expertise, relationships, and track record. Then evolve into the AI DC enablement platform.</div>`,
+      children: [
+        { id: "phase1", label: "Phase 1: Crawl (0-12mo)", icon: "🐛", category: "strategy", summary: "Specialty services: liquid cooling + cabling + rack-and-stack. 30-50 technicians. $5-15M revenue.", details: `<h3>Phase 1: Crawl</h3><ul><li><strong>Focus</strong>: Liquid cooling installation + structured cabling + rack-and-stack</li><li><strong>Team</strong>: 30-50 trained technicians + 5 PMs + 3 sales</li><li><strong>Training</strong>: 6-8 week bootcamp (BICSI + liquid cooling + safety)</li><li><strong>Capital</strong>: $3-5M</li><li><strong>Revenue target</strong>: $5-15M</li><li><strong>Milestone</strong>: Win 3-5 subcontracting contracts with DC builders</li></ul>`, children: [] },
+        { id: "phase2", label: "Phase 2: Walk (12-24mo)", icon: "🚶", category: "strategy", summary: "Add consulting + commissioning + managed ops. NVIDIA Partner certification. $20-50M revenue.", details: `<h3>Phase 2: Walk</h3><ul><li><strong>Add</strong>: DC design consulting, commissioning, managed operations</li><li><strong>Team</strong>: 100-200 people</li><li><strong>Get</strong>: NVIDIA Partner Network certification</li><li><strong>Capital</strong>: $10-30M additional</li><li><strong>Revenue target</strong>: $20-50M</li><li><strong>Milestone</strong>: Complete first turnkey AI DC project for a regional client</li></ul>`, children: [] },
+        { id: "phase3", label: "Phase 3: Run (24-48mo)", icon: "🏃", category: "strategy", summary: "GPU marketplace + white-label cloud + training academy. 5+ geographies. $100-300M revenue.", details: `<h3>Phase 3: Run</h3><ul><li><strong>Add</strong>: GPU marketplace, white-label cloud software, training academy</li><li><strong>Team</strong>: 300-500+ people, multiple geographies</li><li><strong>Partnerships</strong>: NVIDIA strategic, modular DC vendors, GPU OEMs</li><li><strong>Capital</strong>: $50-200M (raise from infrastructure PE/VC)</li><li><strong>Revenue target</strong>: $100-300M</li><li><strong>Milestone</strong>: Managed AI DCs in 5+ geographies with marketplace revenue</li></ul>`, children: [] },
+        { id: "unknowns", label: "Key Unknowns", icon: "❓", category: "risk", summary: "10 critical questions to answer before committing: NVIDIA partnership, bonding, client financing, export controls...", details: `<h3>Critical Unknowns</h3><table><tr><th>#</th><th>Unknown</th><th>Risk</th><th>How to Resolve</th></tr><tr><td>1</td><td>NVIDIA partnership depth</td><td style="color:var(--red)">HIGH</td><td>Contact Partner Network</td></tr><tr><td>2</td><td>GPU allocation for clients</td><td style="color:var(--red)">HIGH</td><td>Talk to distribution (Arrow, Ingram)</td></tr><tr><td>3</td><td>Licensing by geography</td><td style="color:var(--orange)">MED</td><td>Local legal counsel</td></tr><tr><td>4</td><td>Bonding & insurance</td><td style="color:var(--orange)">MED-HIGH</td><td>Surety companies (Zurich, Chubb)</td></tr><tr><td>5</td><td>Hyperscaler competitive response</td><td style="color:var(--orange)">MED</td><td>Study expansion plans</td></tr><tr><td>6</td><td>AI demand sustainability</td><td style="color:var(--orange)">MED</td><td>Monitor Jevons paradox data</td></tr><tr><td>7</td><td>Labor economics (training ROI)</td><td style="color:var(--yellow)">LOW-MED</td><td>Pilot 10-person cohort</td></tr><tr><td>8</td><td>Tech transitions (Rubin, Feynman)</td><td style="color:var(--yellow)">LOW-MED</td><td>Track NVIDIA roadmaps</td></tr><tr><td>9</td><td>Client financing availability</td><td style="color:var(--orange)">MED</td><td>Talk to Macquarie, DigitalBridge</td></tr><tr><td>10</td><td>Export controls</td><td style="color:var(--red)">HIGH for some regions</td><td>Trade compliance attorney</td></tr></table>`, children: [] },
+        { id: "certifications", label: "Fastest Certifications", icon: "📜", category: "strategy", summary: "BICSI IN1 (5 days) + liquid cooling (2-4 wks) + OSHA/NFPA (1 wk) = 6-8 weeks to deployable technician", details: `<h3>Certification Paths (Ranked by Speed)</h3><h4>Tier 1: 1-4 weeks</h4><ul><li>OSHA 30-Hour Construction (1 week, $200-500)</li><li>BICSI Installer 1 / IN1 (5 days, $2,500-4,000)</li><li>CompTIA Server+ (2-4 weeks, $350)</li></ul><h4>Tier 2: 1-3 months</h4><ul><li>BICSI Installer 2 / IN2 (2-3 months)</li><li>DCCA by CNet Training (3-5 days, $3-5K)</li><li>EPA Section 608 (1-2 weeks, $300-500)</li><li>Vendor training: Schneider, Vertiv, CoolIT (1-2 weeks each)</li></ul><h4>Sweet Spot Combo (6-8 weeks total)</h4><ul><li>BICSI IN1 (5 days) → immediately deployable for cabling</li><li>Liquid cooling vendor training (2-4 weeks) → #1 emerging skill gap</li><li>OSHA 30 + NFPA 70E (1 week) → safety compliance</li><li><strong>Result: $35-55/hr billing rate, massive demand</strong></li></ul>`, children: [] }
+      ]
+    }
+  ]
+};
+
+// =====================================================
+// APPLICATION LOGIC
+// =====================================================
+let currentPath = ["root"];
+let selectedNodeId = null;
+let allNodes = {};
+
+// Flatten tree for search
+function indexNodes(node, path = []) {
+  const fullPath = [...path, node.id];
+  allNodes[node.id] = { ...node, path: fullPath };
+  if (node.children) {
+    node.children.forEach(c => indexNodes(c, fullPath));
+  }
+}
+indexNodes(DATA);
+
+function getNode(id) { return allNodes[id]; }
+
+function getNodeByPath(path) {
+  let node = DATA;
+  for (let i = 1; i < path.length; i++) {
+    node = node.children.find(c => c.id === path[i]);
+    if (!node) return null;
+  }
+  return node;
+}
+
+function getCurrentNode() {
+  return getNodeByPath(currentPath);
+}
+
+// Category colors
+const CAT_COLORS = {
+  'value-chain': '#6c8cff', 'power': '#fbbf24', 'hardware': '#34d399',
+  'software': '#a78bfa', 'market': '#fb923c', 'opportunity': '#22d3ee',
+  'strategy': '#f472b6', 'player': '#60a5fa', 'risk': '#f87171',
+  'construction': '#f59e0b', 'cooling': '#06b6d4', 'integration': '#8b5cf6',
+  'operations': '#ec4899'
+};
+const CAT_LABELS = {
+  'value-chain': 'Value Chain', 'power': 'Power & Energy', 'hardware': 'Hardware',
+  'software': 'Software', 'market': 'Market', 'opportunity': 'Opportunity',
+  'strategy': 'Strategy', 'player': 'Player', 'risk': 'Risk',
+  'construction': 'Construction', 'cooling': 'Cooling', 'integration': 'Integration',
+  'operations': 'Operations'
+};
+
+// Render breadcrumbs
+function renderBreadcrumbs() {
+  const el = document.getElementById('breadcrumbs');
+  el.innerHTML = '';
+  currentPath.forEach((id, i) => {
+    const node = getNode(id);
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'sep';
+      sep.textContent = '›';
+      el.appendChild(sep);
+    }
+    const crumb = document.createElement('span');
+    crumb.className = 'crumb' + (i === currentPath.length - 1 ? ' active' : '');
+    crumb.textContent = node ? (node.icon + ' ' + node.label) : id;
+    crumb.onclick = () => navigateTo(currentPath.slice(0, i + 1));
+    el.appendChild(crumb);
+  });
+}
+
+// Render sidebar tree
+function renderTree() {
+  const el = document.getElementById('sidebar');
+  el.innerHTML = '';
+  function renderNode(node, depth = 0) {
+    const item = document.createElement('div');
+    item.className = 'tree-item' + (selectedNodeId === node.id ? ' active' : '');
+    item.style.setProperty('--depth', depth);
+    const hasChildren = node.children && node.children.length > 0;
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow' + (currentPath.includes(node.id) ? ' open' : '');
+    arrow.textContent = hasChildren ? '▶' : '';
+    item.appendChild(arrow);
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = CAT_COLORS[node.category] || '#666';
+    item.appendChild(dot);
+    const label = document.createElement('span');
+    label.textContent = node.icon + ' ' + node.label;
+    item.appendChild(label);
+    item.onclick = (e) => {
+      e.stopPropagation();
+      if (hasChildren) {
+        navigateTo(allNodes[node.id].path);
+      } else {
+        selectNode(node.id);
+      }
+    };
+    el.appendChild(item);
+    if (hasChildren && currentPath.includes(node.id)) {
+      const childContainer = document.createElement('div');
+      childContainer.className = 'tree-children';
+      node.children.forEach(c => renderNode(c, depth + 1));
+    }
+  }
+  renderNode(DATA);
+}
+
+// Render node grid
+function renderGrid() {
+  const node = getCurrentNode();
+  if (!node) return;
+  const header = document.getElementById('level-header');
+  header.innerHTML = `<h2>${node.icon} ${node.label}</h2><div class="level-desc">${node.summary}</div>`;
+
+  // Legend
+  const legend = document.getElementById('legend');
+  const cats = new Set();
+  if (node.children) node.children.forEach(c => cats.add(c.category));
+  legend.innerHTML = '';
+  cats.forEach(cat => {
+    const item = document.createElement('span');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="legend-dot" style="background:${CAT_COLORS[cat]||'#666'}"></span>${CAT_LABELS[cat]||cat}`;
+    legend.appendChild(item);
+  });
+
+  const grid = document.getElementById('node-grid');
+  grid.innerHTML = '';
+
+  if (!node.children || node.children.length === 0) {
+    // Leaf node — show details inline
+    grid.innerHTML = `<div style="max-width:800px">${node.details || '<p>No additional details yet.</p>'}</div>`;
+    return;
+  }
+
+  node.children.forEach(child => {
+    const card = document.createElement('div');
+    card.className = 'node-card' + (getComment(child.id) ? ' has-comment' : '');
+    card.dataset.cat = child.category;
+    card.onclick = () => {
+      if (child.children && child.children.length > 0) {
+        navigateTo([...currentPath, child.id]);
+      } else {
+        selectNode(child.id);
+      }
+    };
+    // Right-click or long-press for detail view
+    card.oncontextmenu = (e) => { e.preventDefault(); selectNode(child.id); };
+
+    let tagsHtml = '';
+    if (child.tags) {
+      tagsHtml = '<div class="node-meta">' + child.tags.map(t => {
+        let cls = 'node-tag';
+        if (t.startsWith('stock:')) cls += ' stock';
+        else if (t === 'bottleneck') cls += ' bottleneck';
+        else if (t === 'opportunity') cls += ' opportunity';
+        else if (t === 'hot') cls += ' hot';
+        return `<span class="${cls}">${t.startsWith('stock:') ? '$'+t.slice(6) : t}</span>`;
+      }).join('') + '</div>';
+    }
+
+    const connCount = CONNECTIONS.filter(c => c.from === child.id || c.to === child.id).length;
+    let childCount = '';
+    const connBadge = connCount > 0 ? ` · ${connCount} connections` : '';
+    if (child.children && child.children.length > 0) {
+      childCount = `<div class="node-children-count">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        ${child.children.length} sub-topics${connBadge} — click to explore
+      </div>`;
+    } else {
+      childCount = `<div class="node-children-count">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Click for details${connBadge}
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="node-header">
+        <span class="node-icon">${child.icon}</span>
+        <span class="node-title">${child.label}</span>
+      </div>
+      <div class="node-summary">${child.summary}</div>
+      ${tagsHtml}
+      ${childCount}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// Navigate to a path
+function navigateTo(path) {
+  currentPath = path;
+  selectedNodeId = null;
+  renderBreadcrumbs();
+  renderTree();
+  renderGrid();
+  closeDetail();
+  document.getElementById('graph-container').scrollTop = 0;
+}
+
+// Get graph connections for a node
+function getConnections(nodeId) {
+  return CONNECTIONS.filter(c => c.from === nodeId || c.to === nodeId).map(c => {
+    const isSource = c.from === nodeId;
+    const targetId = isSource ? c.to : c.from;
+    const target = getNode(targetId);
+    if (!target) return null;
+    return {
+      targetId, target,
+      label: c.label,
+      type: c.type,
+      direction: isSource ? '→' : '←'
+    };
+  }).filter(Boolean);
+}
+
+// Comment system (localStorage)
+function getComment(nodeId) {
+  try { return localStorage.getItem('aidc-comment-' + nodeId) || ''; } catch(e) { return ''; }
+}
+function saveComment(nodeId, text) {
+  try {
+    if (text.trim()) localStorage.setItem('aidc-comment-' + nodeId, text);
+    else localStorage.removeItem('aidc-comment-' + nodeId);
+  } catch(e) {}
+}
+function getAllComments() {
+  const comments = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith('aidc-comment-')) {
+        const nodeId = key.replace('aidc-comment-', '');
+        const node = getNode(nodeId);
+        comments[nodeId] = { label: node ? node.label : nodeId, text: localStorage.getItem(key) };
+      }
+    }
+  } catch(e) {}
+  return comments;
+}
+function exportComments() {
+  const comments = getAllComments();
+  const entries = Object.entries(comments);
+  if (entries.length === 0) { alert('No comments yet. Add comments to nodes in the detail panel.'); return; }
+  let text = '# My Comments on AI DC Ecosystem Map\n# ' + new Date().toISOString().slice(0,10) + '\n\n';
+  entries.forEach(([id, c]) => {
+    text += '## ' + c.label + ' (' + id + ')\n' + c.text + '\n\n';
+  });
+  // Copy to clipboard
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('export-btn');
+    btn.textContent = '✅ Copied to clipboard!';
+    setTimeout(() => { btn.innerHTML = '📋 Export Comments'; }, 2000);
+  }).catch(() => {
+    // Fallback: download as file
+    const blob = new Blob([text], {type:'text/markdown'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'aidc-comments.md'; a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+function copyForClaude(nodeId) {
+  const node = getNode(nodeId);
+  if (!node) return;
+  const comment = getComment(nodeId);
+  const conns = getConnections(nodeId);
+  let text = 'I am looking at the node "' + node.label + '" in my AI DC knowledge map.\n\n';
+  text += 'Summary: ' + node.summary + '\n\n';
+  if (comment) text += 'My comment/question: ' + comment + '\n\n';
+  if (conns.length > 0) text += 'Connected to: ' + conns.map(c => c.target.label + ' (' + c.label + ')').join(', ') + '\n\n';
+  text += 'Please help me understand this deeper / answer my questions.';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-claude-btn');
+    if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = '📋 Copy for Claude'; }, 2000); }
+  });
+}
+
+// Select a node (show detail panel)
+function selectNode(id) {
+  selectedNodeId = id;
+  const node = getNode(id);
+  if (!node) return;
+  const panel = document.getElementById('detail-panel');
+  const content = document.getElementById('detail-content');
+  panel.classList.add('open');
+
+  const conns = getConnections(id);
+  const comment = getComment(id);
+  const hasNarrative = node.narrative;
+
+  let connectionsHtml = '';
+  if (conns.length > 0) {
+    connectionsHtml = `<div class="connections">
+      <h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> Connected Nodes (${conns.length})</h4>
+      ${conns.map(c => `<div class="conn-item" onclick="goToNode('${c.targetId}')">
+        <span class="conn-arrow">${c.direction}</span>
+        <span class="conn-target">${c.target.icon} ${c.target.label}</span>
+        <span class="conn-label">${c.label}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  let commentHtml = `<div class="comment-section">
+    <h4>Your Notes</h4>
+    <textarea class="comment-textarea" placeholder="Add your thoughts, questions, or feedback about this topic..." oninput="saveComment('${id}', this.value); document.getElementById('comment-saved-${id}').classList.add('show'); setTimeout(()=>document.getElementById('comment-saved-${id}').classList.remove('show'),1500)">${comment}</textarea>
+    <div class="comment-saved" id="comment-saved-${id}">Saved</div>
+    <div class="action-btns">
+      <button class="action-btn copy-claude-btn" onclick="copyForClaude('${id}')">📋 Copy for Claude</button>
+    </div>
+  </div>`;
+
+  content.innerHTML = `
+    <button id="detail-close" onclick="closeDetail()">&times;</button>
+    <h2>${node.icon} ${node.label}</h2>
+    <div class="detail-cat" style="color:${CAT_COLORS[node.category]||'#666'}">${CAT_LABELS[node.category]||node.category}</div>
+    ${hasNarrative ? '<div class="narrative">' + node.narrative + '</div>' : ''}
+    <div class="detail-body">${node.details || '<p>Details coming soon. This node can be extended with more research.</p>'}</div>
+    ${node.children && node.children.length > 0 ? `
+      <div class="detail-nav">
+        <h4>Sub-topics</h4>
+        ${node.children.map(c => `<div class="nav-link" onclick="navigateTo(allNodes['${c.id}'].path)">${c.icon} ${c.label}</div>`).join('')}
+      </div>
+    ` : ''}
+    ${connectionsHtml}
+    ${commentHtml}
+  `;
+  renderTree();
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  selectedNodeId = null;
+  renderTree();
+}
+
+// Search
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  if (q.length < 2) { searchResults.classList.remove('show'); return; }
+  const results = Object.values(allNodes).filter(n =>
+    n.label.toLowerCase().includes(q) ||
+    (n.summary && n.summary.toLowerCase().includes(q)) ||
+    (n.tags && n.tags.some(t => t.toLowerCase().includes(q)))
+  ).slice(0, 10);
+  if (results.length === 0) { searchResults.classList.remove('show'); return; }
+  searchResults.innerHTML = results.map(r => `
+    <div class="sr-item" onclick="goToNode('${r.id}')">
+      <div class="sr-label">${r.icon} ${r.label}</div>
+      <div class="sr-path">${r.path.map(p => getNode(p)?.label || p).join(' › ')}</div>
+    </div>
+  `).join('');
+  searchResults.classList.add('show');
+});
+searchInput.addEventListener('blur', () => setTimeout(() => searchResults.classList.remove('show'), 200));
+
+function goToNode(id) {
+  const node = getNode(id);
+  if (!node) return;
+  searchInput.value = '';
+  searchResults.classList.remove('show');
+  if (node.children && node.children.length > 0) {
+    navigateTo(node.path);
+  } else {
+    // Navigate to parent, then select this node
+    const parentPath = node.path.slice(0, -1);
+    currentPath = parentPath.length > 0 ? parentPath : ['root'];
+    renderBreadcrumbs();
+    renderTree();
+    renderGrid();
+    selectNode(id);
+  }
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (selectedNodeId) { closeDetail(); }
+    else if (currentPath.length > 1) { navigateTo(currentPath.slice(0, -1)); }
+  }
+  if (e.key === '/' && !e.ctrlKey && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+
+// Resizable detail panel
+(function() {
+  const panel = document.getElementById('detail-panel');
+  const handle = document.getElementById('resize-handle');
+  let isResizing = false;
+  let startX, startWidth;
+
+  handle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = panel.offsetWidth;
+    handle.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const diff = startX - e.clientX;
+    const newWidth = Math.max(320, Math.min(startWidth + diff, window.innerWidth * 0.8));
+    panel.style.width = newWidth + 'px';
+    // Update content min-width to match
+    document.getElementById('detail-content').style.width = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      handle.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+})();
+
+// Initial render
+navigateTo(['root']);
+</script>
+</body>
+</html>

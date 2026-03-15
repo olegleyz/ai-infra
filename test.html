@@ -1,0 +1,31 @@
+<\!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="background:#111;color:#eee;font-family:monospace;padding:20px">
+<h2 id="s">Testing JS syntax...</h2>
+<pre id="l"></pre>
+<script>
+var x = new XMLHttpRequest();
+x.open('GET', 'index.html', false);
+x.send();
+var html = x.responseText;
+var si = html.indexOf('<' + 'script>') + 8;
+var ei = html.lastIndexOf('</' + 'script>');
+var js = html.substring(si, ei);
+document.getElementById('l').textContent = 'JS length: ' + js.length + '\n';
+try {
+  new Function(js);
+  document.getElementById('s').textContent = 'SYNTAX OK\!';
+  document.getElementById('s').style.color = 'lime';
+} catch(e) {
+  document.getElementById('s').textContent = 'ERROR: ' + e.message;
+  document.getElementById('s').style.color = 'red';
+  document.getElementById('l').textContent += e.stack + '\n\n';
+  // binary search
+  var lo=0, hi=js.length;
+  while(hi-lo>500){var m=((lo+hi)/2)|0;try{new Function(js.substring(0,m));lo=m}catch(e2){hi=m}}
+  document.getElementById('l').textContent += 'Error near char ' + lo + '-' + hi + '\n';
+  document.getElementById('l').textContent += 'Line ~' + js.substring(0,lo).split('\n').length + '\n\n';
+  document.getElementById('l').textContent += 'Context:\n' + js.substring(lo-200, hi+200);
+}
+</script>
+</body></html>
