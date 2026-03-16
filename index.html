@@ -118,6 +118,58 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .node-children-count { font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
 .node-children-count svg { opacity:.5; }
 
+/* Info button on non-leaf cards */
+.node-info-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: border-color .15s, color .15s;
+  font-size: 0;
+  line-height: 1;
+}
+.node-info-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.node-info-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.node-info-btn svg {
+  opacity: .7;
+  pointer-events: none;
+}
+.node-info-btn:hover svg {
+  opacity: 1;
+}
+
+/* Breadcrumb info icon */
+.crumb-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  padding: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text2);
+  vertical-align: middle;
+  transition: color .15s;
+}
+.crumb-info:hover {
+  color: var(--accent);
+}
+
 /* Detail panel - resizable */
 #detail-panel { width:0; background:var(--bg2); border-left:1px solid var(--border); overflow-y:auto; flex-shrink:0; position:relative; transition:width .2s; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 #detail-panel.open { width:420px; transition:none; }
@@ -267,6 +319,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .node-card { padding:14px; }
   .node-card:hover { transform:none; }
   .node-card:active { background:var(--bg3); }
+  .node-info-btn { min-width:44px; min-height:44px; }
 
   /* Notification panel: bottom sheet */
   .notif-panel { position:fixed; top:auto; bottom:0; left:0; right:0; width:100%; max-height:60vh; border-radius:16px 16px 0 0; margin-top:0; }
@@ -1011,8 +1064,35 @@ function renderBreadcrumbs() {
     }
     const crumb = document.createElement('span');
     crumb.className = 'crumb' + (i === currentPath.length - 1 ? ' active' : '');
-    crumb.textContent = node ? (node.icon + ' ' + L(node.label)) : id;
-    crumb.onclick = () => navigateTo(currentPath.slice(0, i + 1));
+    crumb.onclick = (e) => {
+      if (e.target.closest('.crumb-info')) return;
+      navigateTo(currentPath.slice(0, i + 1));
+    };
+
+    const crumbText = document.createTextNode(node ? (node.icon + ' ' + L(node.label)) : id);
+    crumb.appendChild(crumbText);
+
+    if (node && hasChildren(id)) {
+      const infoIcon = document.createElement('span');
+      infoIcon.className = 'crumb-info';
+      infoIcon.setAttribute('role', 'button');
+      infoIcon.setAttribute('aria-label', 'View details for ' + L(node.label));
+      infoIcon.setAttribute('tabindex', '0');
+      infoIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+      infoIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectNode(id);
+      });
+      infoIcon.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          selectNode(id);
+        }
+      });
+      crumb.appendChild(infoIcon);
+    }
+
     el.appendChild(crumb);
   });
 }
@@ -1091,7 +1171,8 @@ function renderGrid() {
     const card = document.createElement('div');
     card.className = 'node-card' + (getComment(childId) ? ' has-comment' : '');
     card.dataset.cat = child.category;
-    card.onclick = () => {
+    card.onclick = (e) => {
+      if (e.target.closest('.node-info-btn')) return;
       if (hasChildren(childId)) {
         navigateTo([...currentPath, childId]);
       } else {
@@ -1117,7 +1198,10 @@ function renderGrid() {
     let childCount = '';
     if (hasChildren(childId)) {
       childCount = '<div class="node-children-count"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>' +
-        getChildren(childId).length + ' ' + t('subTopicsCount') + connBadge + ' — ' + t('clickToExplore') + '</div>';
+        getChildren(childId).length + ' ' + t('subTopicsCount') + connBadge + ' — ' + t('clickToExplore') +
+        '<button class="node-info-btn" aria-label="View details for ' + L(child.label).replace(/"/g, '&quot;') + '" data-node-id="' + childId + '">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' +
+        '</button></div>';
     } else {
       childCount = '<div class="node-children-count"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' +
         t('clickForDetails') + connBadge + '</div>';
@@ -1128,6 +1212,13 @@ function renderGrid() {
       '<div class="node-summary">' + L(child.summary) + '</div>' +
       tagsHtml + childCount;
     grid.appendChild(card);
+    const infoBtn = card.querySelector('.node-info-btn');
+    if (infoBtn) {
+      infoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectNode(childId);
+      });
+    }
   });
 }
 
